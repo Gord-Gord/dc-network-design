@@ -1,6 +1,7 @@
 
 
 Device|Interface|IPv6-address
+------|---------|------------
 Spine-1|eth1|fd12:dc:1:0100:0::1/64
 Spine-1|eth2|fd12:dc:1:0100:1::1/64
 Spine-1|eth3|fd12:dc:1:0100:2::1/64
