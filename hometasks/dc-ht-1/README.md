@@ -23,7 +23,7 @@ fd12:dc:1:1::/64|loopback 1
 fd12:dc:1:000::/55|p2p-link
 fd12:dc:1:200::/55|client and services
 
-Таким образом устроствам в сети ЦОДа назначены следующие IPv6-адреса:
+Таким образом устройствам в сети ЦОДа назначены следующие IPv6-адреса:
 
 Device|eth1|eth2|eth3|loopback 0|loopback 1
 ------|----|----|----|----------|----------
@@ -37,8 +37,8 @@ Client-2|fd12:dc:1:300::2/64
 Client-3|fd12:dc:1:300::3/64
 Client-4|fd12:dc:1:300::4/64
 
-####Результаты вывода команды show ipv6 interface brief:
-#####Spine-1:
+#### Результаты вывода команды show ipv6 interface brief:
+##### Spine-1:
 '''spine-1#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fed7:ee0b/64   up          link local
@@ -51,7 +51,7 @@ Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::1/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:2::1/128             up          config'''
-#####Spine-2:
+##### Spine-2:
 '''spine-2#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fecb:38c2/64   up          link local
@@ -64,7 +64,7 @@ Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::2/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:2::2/128             up          config'''
-#####Leaf-1:
+##### Leaf-1:
 '''leaf-1#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
@@ -77,7 +77,7 @@ Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1:1::3/128           up          config'''
 
-#####Leaf-2
+##### Leaf-2
 '''leaf-2#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fe03:3766/64   up          link local
@@ -88,7 +88,7 @@ Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::5/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1:1::5/128           up          config'''
-#####Leaf-3
+##### Leaf-3
 '''leaf-3#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
