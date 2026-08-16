@@ -39,7 +39,9 @@ Client-4|fd12:dc:1:300::4/64
 
 #### Результаты вывода команды show ipv6 interface brief:
 ##### Spine-1:
-'''spine-1#show ipv6 interface brief
+
+```
+spine-1#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fed7:ee0b/64   up          link local
                            fd12:dc:1:100::1/64          up          config
@@ -50,9 +52,12 @@ Et3        up       1500   fe80::5200:ff:fed7:ee0b/64   up          link local
 Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::1/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:2::1/128             up          config'''
+                           fd12:dc:2::1/128             up          config
+```
+
 ##### Spine-2:
-'''spine-2#show ipv6 interface brief
+```
+spine-2#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fecb:38c2/64   up          link local
                            fd12:dc:1:103::1/64          up          config
@@ -63,9 +68,12 @@ Et3        up       1500   fe80::5200:ff:fecb:38c2/64   up          link local
 Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::2/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:2::2/128             up          config'''
+                           fd12:dc:2::2/128             up          config
+```
+
 ##### Leaf-1:
-'''leaf-1#show ipv6 interface brief
+```
+leaf-1#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
                            fd12:dc:1:100::2/64          up          config
@@ -75,10 +83,12 @@ Et2        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
 Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::3/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1:1::3/128           up          config'''
+                           fd12:dc:1:1::3/128           up          config
+```
 
 ##### Leaf-2
-'''leaf-2#show ipv6 interface brief
+```
+leaf-2#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fe03:3766/64   up          link local
                            fd12:dc:1:101::2/64          up          config
@@ -87,9 +97,12 @@ Et2        up       1500   fe80::5200:ff:fe03:3766/64   up          link local
 Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::5/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1:1::5/128           up          config'''
+                           fd12:dc:1:1::5/128           up          config
+```
+
 ##### Leaf-3
-'''leaf-3#show ipv6 interface brief
+```
+leaf-3#show ipv6 interface brief
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
                            fd12:dc:1:102::2/64          up          config
@@ -98,4 +111,5 @@ Et2        up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
 Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::4/128             up          config
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1:1::4/128           up          config'''
+                           fd12:dc:1:1::4/128           up          config
+```
