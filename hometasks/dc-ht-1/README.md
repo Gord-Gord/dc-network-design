@@ -78,7 +78,6 @@ Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 Et1        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
                            fd12:dc:1:100::2/64          up          config
 Et2        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
-                           fd12:dc:1:101::2/64          up          config
                            fd12:dc:1:103::2/64          up          config
 Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1::3/128             up          config
@@ -113,3 +112,47 @@ Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd12:dc:1:1::4/128           up          config
 ```
+
+#### Скриншоты
+
+##### Spine-коммутаторы пингуют Leaf-коммутаторы
+
+![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-1/spines_are_pinging_leaves.png)
+
+##### Leaf-коммутаторы пингуют Spine-коммутаторы
+
+![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-1/leaves_are_pinging_spines.png)
+
+#### Листинги
+
+Spine-1|Spine-2
+-------|-------
+hostname spine-1|hostname spine-2
+!|!
+interface Ethernet1|interface Ethernet1
+   no switchport|   no switchport
+   ipv6 enable|   ipv6 enable
+   ipv6 address fd12:dc:1:100::1/64|   ipv6 address fd12:dc:1:103::1/64
+!|!
+interface Ethernet2|interface Ethernet2|
+   no switchport|      no switchport|
+   ipv6 enable|        ipv6 enable|
+   ipv6 address fd12:dc:1:101::1/64|   ipv6 address fd12:dc:1:104::1/64
+!|!
+interface Ethernet3|interface Ethernet3|
+   no switchport|      no switchport|
+   ipv6 enable|        ipv6 enable|
+   ipv6 address fd12:dc:1:102::1/64|   ipv6 address fd12:dc:1:105::1/64
+!|!
+interface Ethernet4|interface Ethernet4|
+!|!
+interface Ethernet5|interface Ethernet5|
+!|!
+interface Loopback0|interface Loopback0|
+   ipv6 address fd12:dc:1::1/128|  ipv6 address fd12:dc:1::2/128
+!|!
+interface Loopback1|interface Loopback1|
+   ipv6 address fd12:dc:2::1/128|  ipv6 address fd12:dc:2::2/128
+
+
+
