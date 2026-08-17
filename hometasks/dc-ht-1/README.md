@@ -125,34 +125,151 @@ Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
 
 #### Листинги
 
-Spine-1|Spine-2
--------|-------
-hostname spine-1|hostname spine-2
-!|!
-interface Ethernet1|interface Ethernet1
-   no switchport|   no switchport
-   ipv6 enable|   ipv6 enable
-   ipv6 address fd12:dc:1:100::1/64|   ipv6 address fd12:dc:1:103::1/64
-!|!
-interface Ethernet2|interface Ethernet2|
-   no switchport|      no switchport|
-   ipv6 enable|        ipv6 enable|
-   ipv6 address fd12:dc:1:101::1/64|   ipv6 address fd12:dc:1:104::1/64
-!|!
-interface Ethernet3|interface Ethernet3|
-   no switchport|      no switchport|
-   ipv6 enable|        ipv6 enable|
-   ipv6 address fd12:dc:1:102::1/64|   ipv6 address fd12:dc:1:105::1/64
-!|!
-interface Ethernet4|interface Ethernet4|
-!|!
-interface Ethernet5|interface Ethernet5|
-!|!
-interface Loopback0|interface Loopback0|
-   ipv6 address fd12:dc:1::1/128|  ipv6 address fd12:dc:1::2/128
-!|!
-interface Loopback1|interface Loopback1|
-   ipv6 address fd12:dc:2::1/128|  ipv6 address fd12:dc:2::2/128
+##### Spine-1
+```
+hostname spine-1
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:100::1/64
+!
+interface Ethernet2
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:101::1/64
+!
+interface Ethernet3
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:102::1/64
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Loopback0
+   ipv6 address fd12:dc:1::1/128
+!
+interface Loopback1
+   ipv6 address fd12:dc:2::1/128
+!
+```
 
+##### Spine-2
+```
+hostname spine-2
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:103::1/64
+!
+interface Ethernet2
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:104::1/64
+!
+interface Ethernet3
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:105::1/64
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Loopback0
+   ipv6 address fd12:dc:1::2/128
+!
+interface Loopback1
+   ipv6 address fd12:dc:2::2/128
+```
 
+##### Leaf-1
+```
+hostname leaf-1
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:100::2/64
+!
+interface Ethernet2
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:103::2/64
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Loopback0
+   ipv6 address fd12:dc:1::3/128
+!
+interface Loopback1
+   ipv6 address fd12:dc:1:1::3/128
+```
 
+##### Leaf-2
+```
+hostname leaf-2
+!
+interface Ethernet1
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:101::2/64
+!
+interface Ethernet2
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:104::2/64
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Loopback0
+   ipv6 address fd12:dc:1::5/128
+!
+interface Loopback1
+   ipv6 address fd12:dc:1:1::5/128
+!
+```
+
+##### Leaf-3
+```
+hostname leaf-3
+!
+interface Ethernet1
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:102::2/64
+!
+interface Ethernet2
+   no switchport
+   ipv6 enable
+   ipv6 address fd12:dc:1:105::2/64
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Loopback0
+   ipv6 address fd12:dc:1::4/128
+!
+interface Loopback1
+   ipv6 address fd12:dc:1:1::4/128
+```
