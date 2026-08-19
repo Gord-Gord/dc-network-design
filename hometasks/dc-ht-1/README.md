@@ -29,9 +29,9 @@ Device|eth1|eth2|eth3|loopback 0|loopback 1
 ------|----|----|----|----------|----------
 Spine-1|fd12:dc:1:100::1/64|fd12:dc:1:101::1/64|fd12:dc:1:102::1/64|fd12:dc:1::1/128|fd12:dc:2::1/128
 Spine-2|fd12:dc:1:103::1/64|fd12:dc:1:104::1/64|fd12:dc:1:105::1/64|fd12:dc:1::2/128|fd12:dc:2::2/128
-Leaf-1|fd12:dc:1:100::2/64|fd12:dc:1:103::2/64|нет|fd12:dc:1::3/128|fd12:dc:2::3/128
-Leaf-2|fd12:dc:1:101::2/64|fd12:dc:1:104::2/64|нет|fd12:dc:1::4/128|fd12:dc:2::4/128
-Leaf-3|fd12:dc:1:102::2/64|fd12:dc:1:105::2/64|нет|fd12:dc:1::5/128|fd12:dc:2::5/128
+Leaf-1|fd12:dc:1:100::2/64|fd12:dc:1:103::2/64|нет|fd12:dc:1::3/128|fd12:dc:1:1::3/128
+Leaf-2|fd12:dc:1:101::2/64|fd12:dc:1:104::2/64|нет|fd12:dc:1::4/128|fd12:dc:1:1::4/128
+Leaf-3|fd12:dc:1:102::2/64|fd12:dc:1:105::2/64|нет|fd12:dc:1::5/128|fd12:dc:1:1::5/128
 Client-1|fd12:dc:1:300::1/64
 Client-2|fd12:dc:1:300::2/64
 Client-3|fd12:dc:1:300::3/64
@@ -240,10 +240,10 @@ interface Ethernet4
 interface Ethernet5
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::5/128
+   ipv6 address fd12:dc:1::4/128
 !
 interface Loopback1
-   ipv6 address fd12:dc:1:1::5/128
+   ipv6 address fd12:dc:1:1::4/128
 !
 ```
 
@@ -268,8 +268,9 @@ interface Ethernet4
 interface Ethernet5
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::4/128
+   ipv6 address fd12:dc:1::5/128
 !
 interface Loopback1
-   ipv6 address fd12:dc:1:1::4/128
+   ipv6 address fd12:dc:1:1::5/128
+!
 ```
