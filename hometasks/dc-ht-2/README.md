@@ -2,7 +2,7 @@
 ## Проектирование адресного пространства
 
 ### Цель:
-Настроить OSPF для Underlay сети.сети
+Настроить OSPF для Underlay сети.
 
 ### План работ
 1. Собрать схему Clos;
@@ -39,111 +39,80 @@ Leaf3|fd12:dc1:1::5/128|10.1.1.5
 
 где: loopback 0 3-ий и 4-ый октеты - Порядковый номер ЦОДа - dc1;
      loopback 0 6-ой октет - Порядковый номер POD - 1;
-     loopback 0 16-ой октет - Порядковый номер устройства в POD - 1;
-     router-id 2-ой октет - Порядковый номер ЦОДа - 1;
-     router-id 3-ой октет - Порядковый номер POD - 1;
+     loopback 0 16-ой октет Порядковый номер устройства в POD;
+     router-id 2-ой октет Порядковый номер ЦОДа - 1;
+     router-id 3-ой октет Порядковый номер POD - 1;
      router-id 4-ой октет - Порядковый номер устройства в POD.
 
-### Настройка OSPF
+Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
+
+### Настройка OSPF и включение BFD
 
 На самом верхнем уровне топологии Clos PODы объединяются коммутаторами Super-Spine, которые работают в backbone area (0) OSPF.
 
-Spine и Leaf-коммутаторы самого PODа мы поместим в area 1 и присвоим ей тип stub.
+А вот Spine и Leaf-коммутаторы самого PODа мы поместим в area 1 и присвоим ей тип stub.
 
-На примере коммутатора Spine1 покажем как выполнялась конфигурация:
+На примере коммутатора Spine1 покажем как выполнялась конфигурация коммутаторов в POD:
 
-- включаем на всех коммутаторах маршрутизацию IPv6:
+- включаем на коммутаторе маршрутизацию IPv6:
 ```
-ipv6 unicast-routing vrf default
+Spine1(config)ipv6 unicast-routing vrf default
 ```
 
-- далее, в vrf default запускаем процесс ospfv3:
+- далее, в vrf default запускаем процесс ospfv3 и присваиваем area 1 тип зоны stub:
 ```
 Spine1(config)#ipv6 router ospf 1 vrf default
-Spine1(config-router-ospf3)#router-id 10.0.0.1
-Spine1(config-router-ospf3)#area 0.0.0.1 stub
-```
-spine-1#show ipv6 interface brief
-Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
-Et1        up       1500   fe80::5200:ff:fed7:ee0b/64   up          link local
-                           fd12:dc:1:100::1/64          up          config
-Et2        up       1500   fe80::5200:ff:fed7:ee0b/64   up          link local
-                           fd12:dc:1:101::1/64          up          config
-Et3        up       1500   fe80::5200:ff:fed7:ee0b/64   up          link local
-                           fd12:dc:1:102::1/64          up          config
-Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1::1/128             up          config
-Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:2::1/128             up          config
+Spine1(config-router-ospf3)#router-id 10.1.1.1
+Spine1(config-router-ospf3)#area 1 stub
 ```
 
-##### Spine-2:
+- на каждом из физических интерфейсов устанавливаем mtu 9214, включаем IPv6, помещаем их в area 1, указываем тип сети point-to-point, включаем BFD:
 ```
-spine-2#show ipv6 interface brief
-Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
-Et1        up       1500   fe80::5200:ff:fecb:38c2/64   up          link local
-                           fd12:dc:1:103::1/64          up          config
-Et2        up       1500   fe80::5200:ff:fecb:38c2/64   up          link local
-                           fd12:dc:1:104::1/64          up          config
-Et3        up       1500   fe80::5200:ff:fecb:38c2/64   up          link local
-                           fd12:dc:1:105::1/64          up          config
-Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1::2/128             up          config
-Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:2::2/128             up          config
-```
-
-##### Leaf-1:
-```
-leaf-1#show ipv6 interface brief
-Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
-Et1        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
-                           fd12:dc:1:100::2/64          up          config
-Et2        up       1500   fe80::5200:ff:fed5:5dc0/64   up          link local
-                           fd12:dc:1:103::2/64          up          config
-Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1::3/128             up          config
-Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1:1::3/128           up          config
+interface Ethernet1
+   mtu 9214
+   ipv6 enable
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 1
+   ipv6 ospf bfd
+interface Ethernet2
+   mtu 9214
+   ipv6 enable
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 1
+   ipv6 ospf bfd
+interface Ethernet3
+   mtu 9214
+   ipv6 enable
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 1
+   ipv6 ospf bfd
 ```
 
-##### Leaf-2
-```
-leaf-2#show ipv6 interface brief
-Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
-Et1        up       1500   fe80::5200:ff:fe03:3766/64   up          link local
-                           fd12:dc:1:101::2/64          up          config
-Et2        up       1500   fe80::5200:ff:fe03:3766/64   up          link local
-                           fd12:dc:1:104::2/64          up          config
-Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1::5/128             up          config
-Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1:1::5/128           up          config
-```
+### Проверка результатов работы
 
-##### Leaf-3
-```
-leaf-3#show ipv6 interface brief
-Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
-Et1        up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
-                           fd12:dc:1:102::2/64          up          config
-Et2        up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
-                           fd12:dc:1:105::2/64          up          config
-Lo0        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1::4/128             up          config
-Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd12:dc:1:1::4/128           up          config
-```
+- В начале убедимся, что у нас построилось OSPF-соседство между Spine- и Leaf-коммутаторами:
+
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_neighbors.png)
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)
+
+- Далее посмотрим какие маршруты получены по OSPF и внесены в таблицу маршрутизации:
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_routes.png)
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_routes.png)
+
+- Убедимся в установлении соседства bfd:
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_bfd_peers.png)
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_bfd_peers.png)
+
+- Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
+-- Spine-коммутаторы пингуют loopback 0 Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Spine-коммутатора:
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ping_leaves.png)
+-- Leaf-коммутаторы пингуют loopback 0 Spine-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
+!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ping_spines.png)
+
+
 
 #### Скриншоты
 
-##### Spine-коммутаторы пингуют Leaf-коммутаторы
-
-![alt-текст]( --- )
-
-##### Leaf-коммутаторы пингуют Spine-коммутаторы
-
-![alt-текст]( --- )
 
 #### Листинги
 
@@ -153,7 +122,7 @@ hostname spine-1
 !
 spanning-tree mode mstp
 !
-interface Ethernet1
+peersinterface Ethernet1
    no switchport
    ipv6 enable
    ipv6 address fd12:dc:1:100::1/64
