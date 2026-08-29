@@ -100,8 +100,7 @@ interface Ethernet3
 - Далее смотрим установилось ли у нас OSPF-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет словосочетание "state Full" в строке с указанием  router-id OSPF-соседа:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_neighbors.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)
-
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)  
     Здесь также стоит обратить внимание, что OSPF работает в связке с BFD. Об этом говорит 
     строка "Bfd request is sent and the state is Up".
 
