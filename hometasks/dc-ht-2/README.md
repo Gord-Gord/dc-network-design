@@ -98,172 +98,275 @@ interface Ethernet3
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)
 
 - Далее посмотрим какие маршруты получены по OSPF и внесены в таблицу маршрутизации:
+
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_routes.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_routes.png)
 
 - Убедимся в установлении соседства bfd:
+
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_bfd_peers.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_bfd_peers.png)
 
 - Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
     - Spine-коммутаторы пингуют loopback 0 Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Spine-коммутатора:
+
 ![Спайны пингуют лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_are_pinging_leaves.png)
+
     - Leaf-коммутаторы пингуют loopback 0 Spine-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
+
 ![Лифы пингуют спайны](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_are_pinging_spines.png)
-
-
-
-#### Скриншоты
-
 
 #### Листинги
 
 ##### Spine-1
 ```
-hostname spine-1
+hostname Spine1
 !
 spanning-tree mode mstp
 !
-peersinterface Ethernet1
+interface Ethernet1
+   description DWL-Leaf1-Eth1
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:100::1/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet2
+   description DWL-Leaf2-Eth1
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:101::1/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet3
+   description DWL-Leaf3-Eth1
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:102::1/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet4
 !
 interface Ethernet5
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::1/128
+   ipv6 address fd12:dc1:1::1/128
+   ipv6 ospf 1 area 0.0.0.1
 !
-interface Loopback1
-   ipv6 address fd12:dc:2::1/128
+interface Management1
+!
+ip routing
+!
+ipv6 unicast-routing
+!
+ipv6 router ospf 1
+   router-id 10.1.1.1
+   area 0.0.0.1 stub
 !
 ```
 
 ##### Spine-2
 ```
-hostname spine-2
+hostname Spine2
 !
 spanning-tree mode mstp
 !
 interface Ethernet1
+   description DWL-Leaf1-Eth2
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:103::1/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet2
+   description DWL-Leaf2-Eth2
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:104::1/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet3
+   description DWL-Leaf3-Eth2
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:105::1/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet4
 !
 interface Ethernet5
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::2/128
+   ipv6 address fd12:dc1:1::2/128
+   ipv6 ospf 1 area 0.0.0.1
 !
-interface Loopback1
-   ipv6 address fd12:dc:2::2/128
+interface Management1
+!
+ip routing
+!
+ipv6 unicast-routing
+!
+ipv6 router ospf 1
+   router-id 10.1.1.2
+   area 0.0.0.1 stub
+!
 ```
 
 ##### Leaf-1
 ```
-hostname leaf-1
+hostname Leaf1
 !
 spanning-tree mode mstp
 !
 interface Ethernet1
+   description UPL-Spine1-Eth1
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:100::2/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet2
+   description UPL-Spine2-Eth1
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:103::2/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet3
+   shutdown
 !
 interface Ethernet4
+   shutdown
 !
 interface Ethernet5
+   shutdown
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::3/128
+   ipv6 address fd12:dc1:1::3/128
+   ipv6 ospf 1 area 0.0.0.1
 !
-interface Loopback1
-   ipv6 address fd12:dc:1:1::3/128
+interface Management1
+!
+no ip routing
+!
+ipv6 unicast-routing
+!
+ipv6 router ospf 1
+   router-id 10.1.1.3
+   area 0.0.0.1 stub
+!
 ```
 
 ##### Leaf-2
 ```
-hostname leaf-2
+hostname Leaf2
+!
+spanning-tree mode mstp
 !
 interface Ethernet1
+   description UPL-Spine1-Eth2
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:101::2/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet2
+   description UPL-Spine2-Eth2
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:104::2/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet3
+   shutdown
 !
 interface Ethernet4
+   shutdown
 !
 interface Ethernet5
+   shutdown
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::4/128
+   ipv6 address fd12:dc1:1::4/128
+   ipv6 ospf 1 area 0.0.0.1
 !
-interface Loopback1
-   ipv6 address fd12:dc:1:1::4/128
+interface Management1
+!
+no ip routing
+!
+ipv6 unicast-routing
+!
+ipv6 router ospf 1
+   router-id 10.1.1.4
+   area 0.0.0.1 stub
 !
 ```
 
 ##### Leaf-3
 ```
-hostname leaf-3
+hostname Leaf3
+!
+spanning-tree mode mstp
 !
 interface Ethernet1
+   description UPL-Spine1-Eth3
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:102::2/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet2
+   description UPL-Spine2-Eth3
+   mtu 9214
    no switchport
    ipv6 enable
-   ipv6 address fd12:dc:1:105::2/64
+   ipv6 ospf bfd
+   ipv6 ospf network point-to-point
+   ipv6 ospf 1 area 0.0.0.1
 !
 interface Ethernet3
+   shutdown
 !
 interface Ethernet4
+   shutdown
 !
 interface Ethernet5
+   shutdown
 !
 interface Loopback0
-   ipv6 address fd12:dc:1::5/128
+   ipv6 address fd12:dc1:1::5/128
+   ipv6 ospf 1 area 0.0.0.1
 !
-interface Loopback1
-   ipv6 address fd12:dc:1:1::5/128
+interface Management1
+!
+no ip routing
+!
+ipv6 unicast-routing
+!
+ipv6 router ospf 1
+   router-id 10.1.1.5
+   area 0.0.0.1 stub
 !
 ```
