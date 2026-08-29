@@ -11,9 +11,14 @@
 4. Настроить BFD;
 5. Проверка результатов работы.
 
+### Краткое oписание объекта
+У нас есть ЦОД № 1, в который входит несколько PODов и в частности, POD № 1, схему которого мы и будем собирать по топологии Clos.
+
+На самом верхнем уровне топологии Clos PODы объединяются коммутаторами Super-Spine, которые работают в backbone area (0) OSPF.
+
+А вот интерфейсы коммутаторов POD № 1 будут принадлежать stub area 1.
 ### 1. Сборка схемы Clos
 
-У нас есть ЦОД № 1, в который входит несколько PODов и в частности, POD № 1, схему которого мы и будем собирать по топологии Clos.
 
 
 Схема по топологии Clos была собрана в EVE-NG. В качестве основных элементов схемы, Spine- и Leaf-коммутаторов, использовались виртуальные образы Arista vEOS-lab версии 4.29.2F.
@@ -37,20 +42,16 @@ Leaf1|fd12:dc1:1::3/128|10.1.1.3
 Leaf2|fd12:dc1:1::4/128|10.1.1.4
 Leaf3|fd12:dc1:1::5/128|10.1.1.5
 
-где: loopback 0 3-ий и 4-ый октеты - Порядковый номер ЦОДа - dc1;
-     loopback 0 6-ой октет - Порядковый номер POD - 1;
-     loopback 0 16-ой октет Порядковый номер устройства в POD;
-     router-id 2-ой октет Порядковый номер ЦОДа - 1;
-     router-id 3-ой октет Порядковый номер POD - 1;
-     router-id 4-ой октет - Порядковый номер устройства в POD.
+где: loopback 0 3-ий и 4-ый октеты - Порядковый номер ЦОДа - dc1;  
+     loopback 0 6-ой октет - Порядковый номер POD - 1;  
+     loopback 0 16-ой октет Порядковый номер устройства в POD;  
+     router-id 2-ой октет Порядковый номер ЦОДа - 1;  
+     router-id 3-ой октет Порядковый номер POD - 1;  
+     router-id 4-ой октет - Порядковый номер устройства в POD.  
 
 Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
 
 ### Настройка OSPF и включение BFD
-
-На самом верхнем уровне топологии Clos PODы объединяются коммутаторами Super-Spine, которые работают в backbone area (0) OSPF.
-
-А вот Spine и Leaf-коммутаторы самого PODа мы поместим в area 1 и присвоим ей тип stub.
 
 На примере коммутатора Spine1 покажем как выполнялась конфигурация коммутаторов в POD:
 
@@ -92,22 +93,22 @@ interface Ethernet3
 
 - В начале убедимся, что у нас построилось OSPF-соседство между Spine- и Leaf-коммутаторами:
 
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_neighbors.png)
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_neighbors.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)
 
 - Далее посмотрим какие маршруты получены по OSPF и внесены в таблицу маршрутизации:
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_routes.png)
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_routes.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_routes.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_routes.png)
 
 - Убедимся в установлении соседства bfd:
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_bfd_peers.png)
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_bfd_peers.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_bfd_peers.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_bfd_peers.png)
 
 - Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
 -- Spine-коммутаторы пингуют loopback 0 Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Spine-коммутатора:
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ping_leaves.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ping_leaves.png)
 -- Leaf-коммутаторы пингуют loopback 0 Spine-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
-!(https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ping_spines.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ping_spines.png)
 
 
 
