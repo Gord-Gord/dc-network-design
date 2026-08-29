@@ -92,20 +92,24 @@ interface Ethernet3
 
 ### Проверка результатов работы
 
-- В начале убедимся, что у нас построилось OSPF-соседство между Spine- и Leaf-коммутаторами:
+- В начале убедимся в установлении соседств bfd (статус Up в колонке State):
+
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_bfd_peers.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_bfd_peers.png)
+
+- Далее смотрим установилось ли у нас OSPF-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет словосочетание "state Full" в строке с указанием  router-id OSPF-соседа:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_neighbors.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_neighbors.png)
+
+    Здесь также стоит обратить внимание, что OSPF работает в связке с BFD. Об этом говорит 
+    строка "Bfd request is sent and the state is Up".
 
 - Далее посмотрим какие маршруты получены по OSPF и внесены в таблицу маршрутизации:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_ospf_routes.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_ospf_routes.png)
 
-- Убедимся в установлении соседства bfd:
-
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/spines_bfd_peers.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_bfd_peers.png)
 
 - Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
     - Spine-коммутаторы пингуют loopback 0 Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Spine-коммутатора:
@@ -115,6 +119,10 @@ interface Ethernet3
     - Leaf-коммутаторы пингуют loopback 0 Spine-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
 
 ![Лифы пингуют спайны](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_are_pinging_spines.png)
+
+    - Leaf-коммутаторы пингуют loopback 0 других Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
+
+![Лифы пингуют Лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-2/leaves_are_pinging_leaves.png)
 
 #### Листинги
 
