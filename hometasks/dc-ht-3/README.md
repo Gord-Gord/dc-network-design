@@ -29,20 +29,29 @@
 
 Таким образом, остаётся назначить IPv6-адреса только интерфейсам loopback 0. Пусть IPv6-адреса, назначаемые интерфейсам loopback 0, принадлежат сети fd12:dc1:1:0::/64.
 
-Нам также необходимо назначить каждому коммутатору System-id. Мы будем его формировать из router-id, которые мы назначали коммутаторам ранее, когда строили Underlay по протоколу OSPFv3. Пребразуем router-id в System-id по следующей схеме:  
-- дополняем каждый октет router-id, значение которого меньше 99, впереди стоящими 0, так чтобы запись приняла вид XXX.XXX.XXX.XXX. Если в октете содержится число > 99, то оставляем без изменений;
+Также для каждого коммутатора необходимо определить NET (Network Entity Title) - уникальный идентификатор.
+NET состоит из нескольких частей:
+- AFI (Authority and Format Identifier) — идентификатор класса адреса. Всегда равно 49 и говорит, что это приватный адрес.
+- Area ID — идентификатор зоны, к которой принадлежит узел. В нашем случае соответствует номеру POD, принимаем равным 0001.
+- System ID — уникальный идентификатор самого устройства (см. ниже).
+- NSEL (Network Selector) — селектор сети. Всегда должен быть равно 00. 
+
+System-id будем формировать из router-id, которые мы ранее назначали коммутаторам, когда строили Underlay по протоколу OSPFv3.  
+Пребразуем router-id в System-id по следующей схеме:  
+- если десятичная запись значения октета router-id имеет 1 или 2 разряда, то дополняем его впереди стоящими двумя или одним 0 соответственно, чтобы число разрядов в значении октета стало равным 3;
+- если десятичная запись значения октета router-id имеет 3 разряда, то оставляем его без изменений;
 - преобразуем полученную запись в System-id - XXXX.XXXX.XXXX.  
 Пример: 10.1.1.1 -> 010.001.001.001 -> 0100.0100.1001
 
 Сведём полученные данные в таблицу:
 
-Device|loopback 0|router-id|System-id|
-------|----------|---------|---------|
-Spine1|fd12:dc1:1::1/128|10.1.1.1|0100.0100.1001
-Spine2|fd12:dc1:1::2/128|10.1.1.2|0100.0100.1002
-Leaf1|fd12:dc1:1::3/128|10.1.1.3|0100.0100.1003
-Leaf2|fd12:dc1:1::4/128|10.1.1.4|0100.0100.1004
-Leaf3|fd12:dc1:1::5/128|10.1.1.5|0100.0100.1005
+Device|loopback 0|router-id|System-id|NET
+------|----------|---------|---------|---
+Spine1|fd12:dc1:1::1/128|10.1.1.1|0100.0100.1001|49.0001.0100.0100.1001.00
+Spine2|fd12:dc1:1::2/128|10.1.1.2|0100.0100.1002|49.0001.0100.0100.1002.00
+Leaf1|fd12:dc1:1::3/128|10.1.1.3|0100.0100.1003|49.0001.0100.0100.1003.00
+Leaf2|fd12:dc1:1::4/128|10.1.1.4|0100.0100.1004|49.0001.0100.0100.1004.00
+Leaf3|fd12:dc1:1::5/128|10.1.1.5|0100.0100.1005|49.0001.0100.0100.1005.00
 
 где:  
 - loopback 0 3-ий и 4-ый октеты - Порядковый номер ЦОДа - dc1;  
@@ -63,33 +72,22 @@ Leaf3|fd12:dc1:1::5/128|10.1.1.5|0100.0100.1005
 Spine1(config)ipv6 unicast-routing vrf default
 ```
 
-- далее, в vrf default запускаем процесс ospfv3 и присваиваем area 1 тип зоны stub:
+- далее, в vrf default запускаем процесс IS-IS и указываем NET:
 ```
-Spine1(config)#ipv6 router ospf 1 vrf default
-Spine1(config-router-ospf3)#router-id 10.1.1.1
-Spine1(config-router-ospf3)#area 1 stub
+Spine1(config)#router isis UNDERLAY
+Spine1(config-router-isis)#net 49.0001.0100.0100.1001.00
+Spine1(config-router-isis)#address-family ipv6 unicast
 ```
 
-- на каждом из физических интерфейсов устанавливаем mtu 9214, включаем IPv6, помещаем их в area 1, указываем тип сети point-to-point, включаем BFD:
+- на каждом из физических интерфейсов устанавливаем mtu 9214, включаем IPv6, указываем, что интерфейс включен в инстанс UNDERLAY процеса IS-IS, задаём тип сети point-to-point, а также уровень отношений с соседями на этом интерфейсе: L1:
 ```
-interface Ethernet1
-   mtu 9214
-   ipv6 enable
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 1
-   ipv6 ospf bfd
-interface Ethernet2
-   mtu 9214
-   ipv6 enable
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 1
-   ipv6 ospf bfd
-interface Ethernet3
-   mtu 9214
-   ipv6 enable
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 1
-   ipv6 ospf bfd
+Spine1(config)#interface Ethernet1-3
+Spine1(config-if-Et1-3)#mtu 9214
+Spine1(config-if-Et1-3)#no switchport
+Spine1(config-if-Et1-3)#ipv6 enable
+Spine1(config-if-Et1-3)#isis enable UNDERLAY
+Spine1(config-if-Et1-3)#isis circuit-type level-1
+Spine1(config-if-Et1-3)#isis network point-to-point
 ```
 
 ### Проверка результатов работы
