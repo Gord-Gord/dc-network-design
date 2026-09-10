@@ -108,15 +108,15 @@ Spine1:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark1.png)
 Leaf2:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark2.png)
-Значит допустили ошибку. Исправляем значения MTU на всех интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9124, как и у всех остальных.
-Также обращаем внимание, что не установлено соседство у всех Leaf-ов со Spine2.
+Значит допустили ошибку. Исправляем значения MTU на интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9124, как и у всех остальных.  
+Также обращаем внимание, что Leaf-ы установили соседство только со Spine1, а со Spine2 соседства нет.
 ```
 Leaf3#show isis neighbors
 
 Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
 UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    27          0D
 ```
-Внимательно анализируем настройки протокола IS-IS на Spine1 и видим, что мы на интерфейсах указали уровень отношений L2 тогда, как на всех интерфейсах всех Leaf уровень отношений L1. Устраняем это расхождение.
+Внимательно анализируем настройки протокола IS-IS на Spine2 и видим, что мы на его интерфейсах указали уровень отношений L2 тогда, как на всех интерфейсах всех Leaf-ов уровень отношений L1. Устраняем это расхождение.
 
 ### Проверка результатов работы
 
