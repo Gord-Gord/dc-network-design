@@ -74,7 +74,7 @@ Spine1(config)ipv6 unicast-routing vrf default
 
 - далее, в vrf default запускаем процесс IS-IS и указываем NET:
 ```
-Spine1(config)#router isis UNDERLAY
+Spine1(config)#router isis UNDERLAY vrf default
 Spine1(config-router-isis)#net 49.0001.0100.0100.1001.00
 Spine1(config-router-isis)#address-family ipv6 unicast
 ```
@@ -89,6 +89,34 @@ Spine1(config-if-Et1-3)#isis enable UNDERLAY
 Spine1(config-if-Et1-3)#isis circuit-type level-1
 Spine1(config-if-Et1-3)#isis network point-to-point
 ```
+
+### Траблшутинг
+
+После выполнения настроек на наших коммутаторах проверяем установилось ли соседство IS-IS. Поочередно на каждом коммутаторе командой "show isis neighbors" смотрим установленные коммутаторами по протоколу IS-IS отношения смежности.  
+Вывод с коммутатора Spine1:
+```
+Spine1(config-router-isis)#show isis neighbors
+
+Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+UNDERLAY  default  Leaf1            L1   Ethernet1          P2P               UP    29          0B
+UNDERLAY  default  Leaf2            L1   Ethernet2          P2P               INIT  24          0B
+UNDERLAY  default  Leaf3            L1   Ethernet3          P2P               UP    29          0B
+```
+Как видим, коммутатор Spine1 установил соседство с Leaf1 и Leaf3, но с Leaf2 соседства нет.
+Включаем перехват пакетов на Spine1 на интерфейсе eth2, на котором у нас линк с Leaf2. А затем на интерфейсе eth1 коммутатора Leaf2. Видим, что коммутаторы шлют пакеты с сообщениями IS-IS Hello. Изучаем содержимое этих сообщений. Видим что у обоих коммутаторов разные PDU Lenght.
+Spine1:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark1.png)
+Leaf2:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark2.png)
+Значит допустили ошибку. Исправляем значения MTU на всех интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9124, как и у всех остальных.
+Также обращаем внимание, что не установлено соседство у всех Leaf-ов со Spine2.
+```
+Leaf3#show isis neighbors
+
+Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    27          0D
+```
+Внимательно анализируем настройки протокола IS-IS на Spine1 и видим, что мы на интерфейсах указали уровень отношений L2 тогда, как на всех интерфейсах всех Leaf уровень отношений L1. Устраняем это расхождение.
 
 ### Проверка результатов работы
 
