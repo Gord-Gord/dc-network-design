@@ -63,8 +63,7 @@ Leaf3|fd12:dc1:1::5/128|10.1.1.5|0100.0100.1005|49.0001.0100.0100.1005.00
 
 Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
 
-### Настройка IS-IS и включение BFD
-
+### Настройка IS-IS
 На примере коммутатора Spine1 покажем как выполнялась конфигурация коммутаторов в POD:
 
 - включаем на коммутаторе маршрутизацию IPv6:
@@ -79,20 +78,21 @@ Spine1(config-router-isis)#net 49.0001.0100.0100.1001.00
 Spine1(config-router-isis)#address-family ipv6 unicast
 ```
 
-- на каждом из физических интерфейсов устанавливаем mtu 9214, включаем IPv6, указываем, что интерфейс включен в инстанс UNDERLAY процеса IS-IS, задаём тип сети point-to-point, а также уровень отношений с соседями на этом интерфейсе: L1:
+- на каждом из физических интерфейсов устанавливаем mtu 9000, включаем IPv6, указываем, что интерфейс включен в инстанс UNDERLAY процеса IS-IS, включаем BFD, задаём тип сети point-to-point, а также уровень отношений с соседями на этом интерфейсе: L1:
 ```
 Spine1(config)#interface Ethernet1-3
-Spine1(config-if-Et1-3)#mtu 9214
+Spine1(config-if-Et1-3)#mtu 9000
 Spine1(config-if-Et1-3)#no switchport
 Spine1(config-if-Et1-3)#ipv6 enable
 Spine1(config-if-Et1-3)#isis enable UNDERLAY
+Spine1(config-if-Et1-3)#isis bfd
 Spine1(config-if-Et1-3)#isis circuit-type level-1
 Spine1(config-if-Et1-3)#isis network point-to-point
 ```
 
 ### Траблшутинг
 
-После выполнения настроек на наших коммутаторах проверяем установилось ли соседство IS-IS. Поочередно на каждом коммутаторе командой "show isis neighbors" смотрим установленные коммутаторами по протоколу IS-IS отношения смежности.  
+После выполнения настроек на наших коммутаторах проверяем установилось ли соседство IS-IS. Поочередно на каждом коммутаторе командой "show isis neighbors" смотрим установленные коммутаторами отношения смежности по протоколу IS-IS.  
 Вывод с коммутатора Spine1:
 ```
 Spine1(config-router-isis)#show isis neighbors
@@ -108,7 +108,7 @@ Spine1:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark1.png)
 Leaf2:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark2.png)
-Значит допустили ошибку. Исправляем значения MTU на интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9124, как и у всех остальных.  
+Значит допустили ошибку. Исправляем значения MTU на интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9000, как и у всех остальных.  
 Также обращаем внимание, что Leaf-ы установили соседство только со Spine1, а со Spine2 соседства нет.
 ```
 Leaf3#show isis neighbors
@@ -155,31 +155,34 @@ hostname Spine1
 spanning-tree mode mstp
 !
 interface Ethernet1
-   description DWL-Leaf1-Eth1
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet2
-   description DWL-Leaf2-Eth1
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet3
-   description DWL-Leaf3-Eth1
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet4
 !
@@ -187,18 +190,21 @@ interface Ethernet5
 !
 interface Loopback0
    ipv6 address fd12:dc1:1::1/128
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   isis circuit-type level-1
 !
 interface Management1
 !
-ip routing
+no ip routing
 !
 ipv6 unicast-routing
 !
-ipv6 router ospf 1
-   router-id 10.1.1.1
-   area 0.0.0.1 stub
+router isis UNDERLAY
+   net 49.0001.0100.0100.1001.00
+   !
+   address-family ipv6 unicast
 !
+end
 ```
 
 ##### Spine-2
@@ -208,31 +214,34 @@ hostname Spine2
 spanning-tree mode mstp
 !
 interface Ethernet1
-   description DWL-Leaf1-Eth2
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet2
-   description DWL-Leaf2-Eth2
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet3
-   description DWL-Leaf3-Eth2
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet4
 !
@@ -240,18 +249,21 @@ interface Ethernet5
 !
 interface Loopback0
    ipv6 address fd12:dc1:1::2/128
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   isis circuit-type level-1
 !
 interface Management1
 !
-ip routing
+no ip routing
 !
 ipv6 unicast-routing
 !
-ipv6 router ospf 1
-   router-id 10.1.1.2
-   area 0.0.0.1 stub
+router isis UNDERLAY
+   net 49.0001.0100.0100.1002.00
+   !
+   address-family ipv6 unicast
 !
+end
 ```
 
 ##### Leaf-1
@@ -261,35 +273,34 @@ hostname Leaf1
 spanning-tree mode mstp
 !
 interface Ethernet1
-   description UPL-Spine1-Eth1
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet2
-   description UPL-Spine2-Eth1
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet3
-   shutdown
 !
 interface Ethernet4
-   shutdown
 !
 interface Ethernet5
-   shutdown
 !
 interface Loopback0
    ipv6 address fd12:dc1:1::3/128
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
 !
 interface Management1
 !
@@ -297,10 +308,12 @@ no ip routing
 !
 ipv6 unicast-routing
 !
-ipv6 router ospf 1
-   router-id 10.1.1.3
-   area 0.0.0.1 stub
+router isis UNDERLAY
+   net 49.0001.0100.0100.1003.00
+   !
+   address-family ipv6 unicast
 !
+end
 ```
 
 ##### Leaf-2
@@ -310,35 +323,34 @@ hostname Leaf2
 spanning-tree mode mstp
 !
 interface Ethernet1
-   description UPL-Spine1-Eth2
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet2
-   description UPL-Spine2-Eth2
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet3
-   shutdown
 !
 interface Ethernet4
-   shutdown
 !
 interface Ethernet5
-   shutdown
 !
 interface Loopback0
    ipv6 address fd12:dc1:1::4/128
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
 !
 interface Management1
 !
@@ -346,10 +358,12 @@ no ip routing
 !
 ipv6 unicast-routing
 !
-ipv6 router ospf 1
-   router-id 10.1.1.4
-   area 0.0.0.1 stub
+router isis UNDERLAY
+   net 49.0001.0100.0100.1004.00
+   !
+   address-family ipv6 unicast
 !
+end
 ```
 
 ##### Leaf-3
@@ -359,35 +373,34 @@ hostname Leaf3
 spanning-tree mode mstp
 !
 interface Ethernet1
-   description UPL-Spine1-Eth3
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet2
-   description UPL-Spine2-Eth3
-   mtu 9214
+   mtu 9000
    no switchport
    ipv6 enable
-   ipv6 ospf bfd
-   ipv6 ospf network point-to-point
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
+   no isis bfd
+   isis ipv6 bfd
+   isis circuit-type level-1
+   isis network point-to-point
 !
 interface Ethernet3
-   shutdown
 !
 interface Ethernet4
-   shutdown
 !
 interface Ethernet5
-   shutdown
 !
 interface Loopback0
    ipv6 address fd12:dc1:1::5/128
-   ipv6 ospf 1 area 0.0.0.1
+   isis enable UNDERLAY
 !
 interface Management1
 !
@@ -395,8 +408,10 @@ no ip routing
 !
 ipv6 unicast-routing
 !
-ipv6 router ospf 1
-   router-id 10.1.1.5
-   area 0.0.0.1 stub
+router isis UNDERLAY
+   net 49.0001.0100.0100.1005.00
+   !
+   address-family ipv6 unicast
 !
+end
 ```
