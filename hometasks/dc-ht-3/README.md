@@ -5,11 +5,11 @@
 Настроить IS-IS для Underlay сети.
 
 ### План работ
-1. Собрать схему Clos;
-2. Распределить адресное пространство;
-3. Настроить IS-IS в Underlay-сети;
-4. Настроить BFD;
-5. Проверка результатов работы.
+1. Собрать схему Clos
+2. Распределить адресное пространство
+3. Настроить IS-IS в Underlay-сети
+4. Траблшутинг
+5. Проверка результатов работы
 
 ### Краткое oписание объекта
 У нас есть ЦОД № 1, в который входит несколько PODов и в частности, POD № 1, схему которого мы и будем собирать по топологии Clos.
@@ -85,7 +85,7 @@ Spine1(config-if-Et1-3)#mtu 9000
 Spine1(config-if-Et1-3)#no switchport
 Spine1(config-if-Et1-3)#ipv6 enable
 Spine1(config-if-Et1-3)#isis enable UNDERLAY
-Spine1(config-if-Et1-3)#isis bfd
+Spine1(config-if-Et1-3)#isis ipv6 bfd
 Spine1(config-if-Et1-3)#isis circuit-type level-1
 Spine1(config-if-Et1-3)#isis network point-to-point
 ```
@@ -125,13 +125,11 @@ UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_bfd_peers.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_bfd_peers.png)
 
-- Далее смотрим установилось ли у нас IS-IS-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет словосочетание "state Full" в строке с указанием  router-id IS-IS-соседа:
+- Далее смотрим установилось ли у нас IS-IS-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id IS-IS-соседа:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_isis_neighbors.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_isis_neighbors.png)  
-    Здесь также стоит обратить внимание, что IS-IS работает в связке с BFD. Об этом говорит 
-    строка "Bfd request is sent and the state is Up".
-
+    
 - Далее посмотрим какие маршруты получены по IS-IS и внесены в таблицу маршрутизации:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_isis_routes.png)
