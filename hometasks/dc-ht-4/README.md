@@ -34,7 +34,7 @@ fd12:dc1:1:0::/64|loopback 0
 fd12:dc1:1:200::/55|p2p-link
 
 Также необходимо определиться с номерами автомномных систем (AS). Они будут из диапазона приватных ASN.  
-Чтобы трафик между Leaf-коммутаторами проходил ровно через один Spine-коммутаторв, Spine1 и Spine2 будут иметь одинаковые номера AS. Пусть этот номера будет равным 64520. А Leaf-коммутаторам ASN будем назначать по-порядку: 64521, 64522, 64523 и т.д. 
+Чтобы трафик между Leaf-коммутаторами проходил ровно через один Spine-коммутатор, Spine1 и Spine2 будут иметь одинаковые номера AS. Пусть эти номера будет равными 64520. А Leaf-коммутаторам ASN будем назначать по-порядку: 64521, 64522, 64523 и т.д. 
 
 Сведём полученные данные в таблицу:
 
@@ -54,7 +54,7 @@ Leaf3|fd12:dc1:1:202::2/64|fd12:dc1:1:205::2/64|нет|fd12:dc1:1::5/128|10.1.1.
 - router-id 3-ой октет Порядковый номер POD - 1;  
 - router-id 4-ой октет - Порядковый номер устройства в POD.  
 
-Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
+Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования. Отметим только то, что на каждом физическом интерфейсе устанавливаем mtu 9000, включаем IPv6.
 
 ### Настройка BGP
 
@@ -81,7 +81,7 @@ router bgp 64520
       neighbor fe80::5200:ff:fe15:f4e8%Et3 activate
       neighbor fe80::5200:ff:fed5:5dc0%Et1 activate
 ```
-- далее необходимо объявить, что мы будем анонсировать нащим соседям. Для этого в настройки процесса BGЗ добавляем строку:
+- далее необходимо объявить, что мы будем анонсировать нашим соседям. Для этого в настройки процесса BGP добавляем строку с ссылкой на карту маршрутизации:
 ```
 router bgp 64520
    redistribute connected route-map rm-connected
@@ -120,19 +120,102 @@ Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
  B E      fd12:dc1:1::5/128 [200/0]
            via fe80::5200:ff:fe15:f4e8, Ethernet3
 ```
-Надо отметить, что, несмотря на то что коммутаторы установили соседство и успешно обменялись информацией о своих Loopback-интерфейсах, такой способ настройки BGP нельзя признать гибким и масштабируемым. При добавлении в сеть POD нового Leaf-коммутатора, нам каждый раз придется придётся прописывать в настройках BGP каждого Spine-коммутатора IPv6-адрес Link-local интерфейса добавляемого Leaf-коммутатора. И напротив: при добавлении в сеть POD нового Spine‑коммутатора мы будем вынуждены прописывать его в настройках всех подключаемых к нему Leaf‑коммутаторов.
-Чтобы 
-- на каждом из физических интерфейсов устанавливаем mtu 9000, включаем IPv6, указываем, что интерфейс включен в инстанс UNDERLAY процеса BGP, включаем BFD, задаём тип сети point-to-point, а также уровень отношений с соседями на этом интерфейсе: L1:
+Надо отметить, что, несмотря на то что коммутаторы установили соседство и успешно обменялись информацией о своих Loopback-интерфейсах, такой способ настройки BGP нельзя признать гибким и масштабируемым. При добавлении в сеть POD нового Leaf-коммутатора, нам каждый раз придётся прописывать в настройках BGP каждого Spine-коммутатора IPv6-адрес Link-local интерфейса добавляемого Leaf-коммутатора. И напротив: при добавлении в сеть POD нового Spine‑коммутатора мы будем вынуждены прописывать его в настройках всех подключаемых к нему Leaf‑коммутаторов.
+Чтобы уйти от такой немасштабируемой схемы:
+- объявим peer-filter LEAF-AS-NUMBERS, включающий диапазон номеров приватных AS 64521-64535;
+- выключаем на Spine-коммутаторах процесс BGP 64520 и создаем его заново:
+- скажем новому процессу BGP какую сеть IPv6 слушать, чтобы установить соседство с указанными AS;
 ```
-Spine1(config)#interface Ethernet1-3
-Spine1(config-if-Et1-3)#mtu 9000
-Spine1(config-if-Et1-3)#no switchport
-Spine1(config-if-Et1-3)#ipv6 enable
-Spine1(config-if-Et1-3)#isis enable UNDERLAY
-Spine1(config-if-Et1-3)#isis ipv6 bfd
-Spine1(config-if-Et1-3)#isis circuit-type level-1
-Spine1(config-if-Et1-3)#isis network point-to-point
+peer-filter LEAF-AS-NUMBERS
+   10 match as-range 64512-64535 result accept
+
+no router bgp 64520
+
+router bgp 64520
+   router-id 10.1.1.1
+   bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBERS
+   neighbor LEAF-UNDERLAY peer group
+   redistribute connected route-map rm-connected
+
+   address-family ipv6
+      neighbor LEAF-UNDERLAY activate
 ```
+- на Leaf-коммутаторах действуем аналогично, но здесь нет необходимости создавать peer-filter так, как ASN у наших Spine-коммутаторов один 64520. Кроме того, мы здесь должны будем указать IPv6 адреса на интерфейсах Spine-коммутаторов (пример для Leaf1):
+```
+no router bgp 64521
+
+router bgp 64521
+   router-id 10.1.1.3
+   bgp listen range fd12:dc1:1:200::/55 peer-group SPINE-UNDERLAY remote-as 64520
+   neighbor SPINE-UNDERLAY peer-group
+   neighbor fd12:dc1:1:200::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:200::1 remote-as 64520
+   neighbor fd12:dc1:1:203::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:203::1 remote-as 64520
+   redistribute connected route-map rm-connected
+   !
+   address-family ipv6
+      neighbor SPINE-UNDERLAY activate
+```
+Видим, что соседство установилось и получены маршруты:
+- Spine1:
+```
+Spine1#show ipv6 bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.1.1, local AS number 64520
+Neighbor Status Codes: m - Under maintenance
+  Neighbor         V  AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  fd12:dc1:1:200::2 4  64521            210       211    0    0 03:24:34 Estab   1      1
+  fd12:dc1:1:201::2 4  64522            210       211    0    0 03:24:39 Estab   1      1
+  fd12:dc1:1:202::2 4  64523            210       211    0    0 03:24:42 Estab   1      1
+Spine1#show ipv6 route bgp
+
+VRF: default
+Displaying 3 of 14 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+ B E      fd12:dc1:1::3/128 [200/0]
+           via fd12:dc1:1:200::2, Ethernet1
+ B E      fd12:dc1:1::4/128 [200/0]
+           via fd12:dc1:1:201::2, Ethernet2
+ B E      fd12:dc1:1::5/128 [200/0]
+           via fd12:dc1:1:202::2, Ethernet3
+```
+- Leaf1:
+Leaf1#show ipv6 bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.1.3, local AS number 64521
+Neighbor Status Codes: m - Under maintenance
+  Neighbor         V  AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  fd12:dc1:1:200::1 4  64520            213       212    0    0 03:26:07 Estab   3      3
+  fd12:dc1:1:203::1 4  64520            213       214    0    0 03:26:04 Estab   3      3
+Leaf1#show ipv6 route bgp
+
+VRF: default
+Displaying 4 of 13 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+ B E      fd12:dc1:1::1/128 [200/0]
+           via fd12:dc1:1:200::1, Ethernet1
+ B E      fd12:dc1:1::2/128 [200/0]
+           via fd12:dc1:1:203::1, Ethernet2
+ B E      fd12:dc1:1::4/128 [200/0]
+           via fd12:dc1:1:200::1, Ethernet1
+ B E      fd12:dc1:1::5/128 [200/0]
+           via fd12:dc1:1:200::1, Ethernet1
+```
+Такой подход, при котором на Spine‑коммутаторах заранее задают подсеть для BGP‑сессий и разрешённый диапазон ASN для установления соседства, представляется наиболее гибким и масштабируемым. Фактически подготовка Spine к подключению нового Leaf сводится к настройке IPv6‑адресов на интерфейсах Spine-коммутатора для подключения этого Leaf.
+А на Leaf‑коммутаторе всё же требуется выполнить полный цикл настроек при его добавлении в IP‑фабрику.
 
 ### Траблшутинг
 
