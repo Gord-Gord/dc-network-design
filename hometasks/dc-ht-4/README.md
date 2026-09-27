@@ -7,9 +7,8 @@
 ### План работ
 1. Собрать схему Clos
 2. Распределить адресное пространство
-3. Настроить BGP в Underlay-сети
-4. Траблшутинг
-5. Проверка результатов работы
+3. Настроить и отладка BGP в Underlay-сети
+4. Проверка результатов работы
 
 ### Краткое oписание объекта
 У нас есть ЦОД № 1, в который входит несколько PODов и в частности, POD № 1, схему которого мы и будем собирать по топологии Clos.
@@ -21,7 +20,7 @@
 ### 1. Сборка схемы Clos
 
 Схема по топологии Clos была собрана в EVE-NG. В качестве основных элементов схемы, Spine- и Leaf-коммутаторов, использовались виртуальные образы Arista vEOS-lab версии 4.29.2F.
-![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/scheme.png)
+![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/scheme.png)
 
 ### 2. Распределение адресного пространства
 
@@ -69,6 +68,7 @@ Spine1(config)ipv6 unicast-routing vrf default
 ```
 router bgp 64520
    router-id 10.1.1.1
+   timers bgp 3 9
    neighbor fe80::5200:ff:fe03:3766%Et2 remote-as 64522
    neighbor fe80::5200:ff:fe15:f4e8%Et3 remote-as 64523
    neighbor fe80::5200:ff:fed5:5dc0%Et1 remote-as 64521
@@ -87,7 +87,7 @@ router bgp 64520
    redistribute connected route-map rm-connected
    exit
 ```
-- ну и создаём саму карту маршрутизации, которая указывает, что анонсировать нужно IPv6-адреса интерфейсов LoopBack:
+- ну и создаём саму карту маршрутизации, которая указывает, что анонсировать нужно IPv6-адреса интерфейсов Loopback 0:
 ```
 route-map rm-connected permit 10
    match interface Loopback0
@@ -125,6 +125,7 @@ Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
 - объявим peer-filter LEAF-AS-NUMBERS, включающий диапазон номеров приватных AS 64521-64535;
 - выключаем на Spine-коммутаторах процесс BGP 64520 и создаем его заново:
 - скажем новому процессу BGP какую сеть IPv6 слушать, чтобы установить соседство с указанными AS;
+- ну и незабываем включить протокол BFD:
 ```
 peer-filter LEAF-AS-NUMBERS
    10 match as-range 64512-64535 result accept
@@ -133,8 +134,10 @@ no router bgp 64520
 
 router bgp 64520
    router-id 10.1.1.1
+   timers bgp 3 9
    bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBERS
    neighbor LEAF-UNDERLAY peer group
+   neighbor LEAF-UNDERLAY bfd
    redistribute connected route-map rm-connected
 
    address-family ipv6
@@ -146,8 +149,9 @@ no router bgp 64521
 
 router bgp 64521
    router-id 10.1.1.3
-   bgp listen range fd12:dc1:1:200::/55 peer-group SPINE-UNDERLAY remote-as 64520
-   neighbor SPINE-UNDERLAY peer-group
+   timers bgp 3 9
+   neighbor SPINE-UNDERLAY peer group
+   neighbor SPINE-UNDERLAY bfd
    neighbor fd12:dc1:1:200::1 peer group SPINE-UNDERLAY
    neighbor fd12:dc1:1:200::1 remote-as 64520
    neighbor fd12:dc1:1:203::1 peer group SPINE-UNDERLAY
@@ -157,7 +161,7 @@ router bgp 64521
    address-family ipv6
       neighbor SPINE-UNDERLAY activate
 ```
-Видим, что соседство установилось и получены маршруты:
+Смотрим что у нас получилось:
 - Spine1:
 ```
 Spine1#show ipv6 bgp summary
@@ -215,62 +219,81 @@ Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
  B E      fd12:dc1:1::5/128 [200/0]
            via fd12:dc1:1:200::1, Ethernet1
 ```
+Соседства построены, маршруты получены, что и требовалось выполнить.
 Такой подход, при котором на Spine‑коммутаторах заранее задают подсеть для BGP‑сессий и разрешённый диапазон ASN для установления соседства, представляется наиболее гибким и масштабируемым. Фактически подготовка Spine к подключению нового Leaf сводится к настройке IPv6‑адресов на интерфейсах Spine-коммутатора для подключения этого Leaf.
 А на Leaf‑коммутаторе всё же требуется выполнить полный цикл настроек при его добавлении в IP‑фабрику.
 
-### Траблшутинг
-
-После выполнения настроек на наших коммутаторах проверяем установилось ли соседство BGP. Поочередно на каждом коммутаторе командой "show isis neighbors" смотрим установленные коммутаторами отношения смежности по протоколу BGP.  
-Вывод с коммутатора Spine1:
+Можем более детально посмотреть информацию на Spine1 о маршруте к Loopback 0 коммутатора Leaf1:
 ```
-Spine1(config-router-isis)#show isis neighbors
-
-Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
-UNDERLAY  default  Leaf1            L1   Ethernet1          P2P               UP    29          0B
-UNDERLAY  default  Leaf2            L1   Ethernet2          P2P               INIT  24          0B
-UNDERLAY  default  Leaf3            L1   Ethernet3          P2P               UP    29          0B
+Spine1#show ipv6 bgp fd12:dc1:1::3/128
+BGP routing table information for VRF default
+Router identifier 10.1.1.1, local AS number 64520
+BGP routing table entry for fd12:dc1:1::3/128
+ Paths: 1 available
+  64521
+    fd12:dc1:1:200::2 from fd12:dc1:1:200::2 (10.1.1.3)
+      Origin IGP, metric 0, localpref 100, IGP metric 1, weight 0, received 02:55:59 ago, valid, external, best
+      Rx SAFI: Unicast
+Spine1#
 ```
-Как видим, коммутатор Spine1 установил соседство с Leaf1 и Leaf3, но с Leaf2 соседства нет.
-Включаем перехват пакетов на Spine1 на интерфейсе eth2, на котором у нас линк с Leaf2. А затем на интерфейсе eth1 коммутатора Leaf2. Видим, что коммутаторы шлют пакеты с сообщениями BGP Hello. Изучаем содержимое этих сообщений. Видим что у обоих коммутаторов разные PDU Lenght.
-Spine1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark1.png)
-Leaf2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark2.png)
-Значит допустили ошибку. Исправляем значения MTU на интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9000, как и у всех остальных.  
-Также обращаем внимание, что Leaf-ы установили соседство только со Spine1, а со Spine2 соседства нет.
+Мы видим, что происхождение (Origin) этого маршрута у нас стоит IGP - скорее всего это особенность Arista. А так как этот маршрут мы не получаем от протоколов семейства IGP, то более правильным будет установить Origin incomplete в route-map на всех коммутаторах:
 ```
-Leaf3#show isis neighbors
-
-Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
-UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    27          0D
+route-map rm-connected permit 10
+   set origin incomplete
 ```
-Внимательно анализируем настройки протокола BGP на Spine2 и видим, что мы на его интерфейсах указали уровень отношений L2 тогда, как на всех интерфейсах всех Leaf-ов уровень отношений L1. Устраняем это расхождение.
+Проверяем изменилась ли информация о получаемых маршрутах:
+```
+Spine1#show ipv6 bgp fd12:dc1:1::3/128
+BGP routing table information for VRF default
+Router identifier 10.1.1.1, local AS number 64520
+BGP routing table entry for fd12:dc1:1::3/128
+ Paths: 1 available
+  64521
+    fd12:dc1:1:200::2 from fd12:dc1:1:200::2 (10.1.1.3)
+      Origin IGP, metric 0, localpref 100, IGP metric 1, weight 0, received 02:55:59 ago, valid, external, best
+      Rx SAFI: Unicast
+Spine1#
+```
+Видим что изменений нет. Оно и понятно, потому как BGP рассылает Update, когда что-то меняется в сети. Выключим на Leaf1 интерфейc, к которому подключен Spine1, а затем снова включим его. На Spine1 вновь проверяем изменилась ли информация:
+```
+Spine1#show ipv6 bgp fd12:dc1:1::3/128
+BGP routing table information for VRF default
+Router identifier 10.1.1.1, local AS number 64520
+BGP routing table entry for fd12:dc1:1::3/128
+ Paths: 1 available
+  64521
+    fd12:dc1:1:200::2 from fd12:dc1:1:200::2 (10.1.1.3)
+      Origin INCOMPLETE, metric 0, localpref 100, IGP metric 1, weight 0, received 00:00:05 ago, valid, external, best
+      Rx SAFI: Unicast
+Spine1#
+```
+Да! Мы видим информация поменялась, теперь Origin INCOMPLETE.
 
 ### Проверка результатов работы
 
 - В начале убедимся в установлении соседств bfd (статус Up в колонке State):
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_bfd_peers.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_bfd_peers.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bfd_peers.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bfd_peers.png)
 
 - Далее смотрим установилось ли у нас BGP-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id BGP-соседа:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_isis_neighbors.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_isis_neighbors.png)  
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bgp_neighbors.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bgp_neighbors.png)  
     
 - Далее посмотрим какие маршруты получены по BGP и внесены в таблицу маршрутизации:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_isis_routes.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_isis_routes.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bgp_routes.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bgp_routes.png)
 
 
 - Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
     - Spine-коммутаторы пингуют loopback 0 Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Spine-коммутатора:  
-![Спайны пингуют лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_are_pinging_leaves.png)  
+![Спайны пингуют лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_are_pinging_leaves.png)  
     - Leaf-коммутаторы пингуют loopback 0 Spine-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
-![Лифы пингуют спайны](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_are_pinging_spines.png)  
+![Лифы пингуют спайны](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_are_pinging_spines.png)  
     - Leaf-коммутаторы пингуют loopback 0 других Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
-![Лифы пингуют Лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_are_pinging_leaves.png)
+![Лифы пингуют Лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_are_pinging_leaves.png)
 
 #### Листинги
 
