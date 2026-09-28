@@ -290,11 +290,11 @@ router bgp 64520
     - Spine-коммутаторы:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_ipv6_bgp.png)
     - Leaf1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leav1_ipv6_bgp.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf1_ipv6_bgp.png)
     - Leaf2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leav2_ipv6_bgp.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf2_ipv6_bgp.png)
     - Leaf3:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leav3_ipv6_bgp.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf3_ipv6_bgp.png)
 
 Как видим, на каждом Leaf-коммутаторе мы получаем анонсы до других Leaf с разными next-hop, но одинаковой стоимости (local-preferance, weight, AS-Path).
 
