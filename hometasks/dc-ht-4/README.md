@@ -307,22 +307,22 @@ interface Ethernet1
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:200::1/64
 !
 interface Ethernet2
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:201::1/64
 !
 interface Ethernet3
    mtu 9000
    no switchport
    ipv6 enable
-!
-interface Ethernet4
-!
-interface Ethernet5
+   ipv6 address fd12:dc1:1:202::1/64
 !
 interface Loopback0
+   ipv6 enable
    ipv6 address fd12:dc1:1::1/128
 !
 interface Management1
@@ -330,6 +330,24 @@ interface Management1
 no ip routing
 !
 ipv6 unicast-routing
+!
+route-map rm-connected permit 10
+   match interface Loopback0
+   set origin incomplete
+!
+peer-filter LEAF-AS-NUMBERS
+   10 match as-range 64512-64535 result accept
+!
+router bgp 64520
+   router-id 10.1.1.1
+   timers bgp 3 9
+   bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBES
+   neighbor LEAF-UNDERLAY peer group
+   neighbor LEAF-UNDERLAY bfd
+   redistribute connected route-map rm-connected
+   !
+   address-family ipv6
+      neighbor LEAF-UNDERLAY activate
 !
 end
 ```
@@ -344,22 +362,26 @@ interface Ethernet1
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:203::1/64
 !
 interface Ethernet2
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:204::1/64
 !
 interface Ethernet3
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:205::1/64
 !
 interface Ethernet4
 !
 interface Ethernet5
 !
 interface Loopback0
+   ipv6 enable
    ipv6 address fd12:dc1:1::2/128
 !
 interface Management1
@@ -367,6 +389,25 @@ interface Management1
 no ip routing
 !
 ipv6 unicast-routing
+!
+route-map rm-connected permit 10
+   match interface Loopback0
+   set origin incomplete
+!
+peer-filter LEAF-AS-NUMBERS
+   10 match as-range 64512-64535 result accept
+!
+router bgp 64520
+   router-id 10.1.1.2
+   no bgp default ipv4-unicast
+   timers bgp 3 9
+   bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBERS
+   neighbor LEAF-UNDERLAY peer group
+   neighbor LEAF-UNDERLAY bfd
+   redistribute connected route-map rm-connected
+   !
+   address-family ipv6
+      neighbor LEAF-UNDERLAY activate
 !
 end
 ```
@@ -381,11 +422,13 @@ interface Ethernet1
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:200::2/64
 !
 interface Ethernet2
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:203::2/64
 !
 interface Ethernet3
 !
@@ -394,6 +437,7 @@ interface Ethernet4
 interface Ethernet5
 !
 interface Loopback0
+   ipv6 enable
    ipv6 address fd12:dc1:1::3/128
 !
 interface Management1
@@ -401,6 +445,24 @@ interface Management1
 no ip routing
 !
 ipv6 unicast-routing
+!
+route-map rm-connected permit 10
+   match interface Loopback0
+   set origin incomplete
+!
+router bgp 64521
+   router-id 10.1.1.3
+   timers bgp 3 9
+   neighbor SPINE-UNDERLAY peer group
+   neighbor SPINE-UNDERLAY bfd
+   neighbor fd12:dc1:1:200::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:200::1 remote-as 64520
+   neighbor fd12:dc1:1:203::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:203::1 remote-as 64520
+   redistribute connected route-map rm-connected
+   !
+   address-family ipv6
+      neighbor SPINE-UNDERLAY activate
 !
 end
 ```
@@ -415,11 +477,13 @@ interface Ethernet1
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:201::2/64
 !
 interface Ethernet2
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:204::2/64
 !
 interface Ethernet3
 !
@@ -428,6 +492,7 @@ interface Ethernet4
 interface Ethernet5
 !
 interface Loopback0
+   ipv6 enable
    ipv6 address fd12:dc1:1::4/128
 !
 interface Management1
@@ -435,6 +500,24 @@ interface Management1
 no ip routing
 !
 ipv6 unicast-routing
+!
+route-map rm-connected permit 10
+   match interface Loopback0
+   set origin incomplete
+!
+router bgp 64522
+   router-id 10.1.1.4
+   timers bgp 3 9
+   neighbor SPINE-UNDERLAY peer group
+   neighbor SPINE-UNDERLAY bfd
+   neighbor fd12:dc1:1:201::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:201::1 remote-as 64520
+   neighbor fd12:dc1:1:204::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:204::1 remote-as 64520
+   redistribute connected route-map rm-connected
+   !
+   address-family ipv6
+      neighbor SPINE-UNDERLAY activate
 !
 end
 ```
@@ -449,11 +532,13 @@ interface Ethernet1
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:202::2/64
 !
 interface Ethernet2
    mtu 9000
    no switchport
    ipv6 enable
+   ipv6 address fd12:dc1:1:205::2/64
 !
 interface Ethernet3
 !
@@ -462,6 +547,7 @@ interface Ethernet4
 interface Ethernet5
 !
 interface Loopback0
+   ipv6 enable
    ipv6 address fd12:dc1:1::5/128
 !
 interface Management1
@@ -469,6 +555,24 @@ interface Management1
 no ip routing
 !
 ipv6 unicast-routing
+!
+route-map rm-connected permit 10
+   match interface Loopback0
+   set origin incomplete
+!
+router bgp 64523
+   router-id 10.1.1.5
+   timers bgp 3 9
+   neighbor SPINE-UNDERLAY peer group
+   neighbor SPINE-UNDERLAY bfd
+   neighbor fd12:dc1:1:202::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:202::1 remote-as 64520
+   neighbor fd12:dc1:1:205::1 peer group SPINE-UNDERLAY
+   neighbor fd12:dc1:1:205::1 remote-as 64520
+   redistribute connected route-map rm-connected
+   !
+   address-family ipv6
+      neighbor SPINE-UNDERLAY activate
 !
 end
 ```
