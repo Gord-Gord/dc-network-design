@@ -287,13 +287,13 @@ router bgp 64520
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bgp_neighbors.png)  
     
 - Интересно посмотреть, что каждое устройство получает по протоколу BGP:
-    - Spine-коммутаторы:
+    - Spine-коммутаторы:  
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_ipv6_bgp.png)
-    - Leaf1:
+    - Leaf1:  
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf1_ipv6_bgp.png)
-    - Leaf2:
+    - Leaf2:  
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf2_ipv6_bgp.png)
-    - Leaf3:
+    - Leaf3:  
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf3_ipv6_bgp.png)
 Как видим, на каждом Leaf-коммутаторе мы получаем анонсы до других Leaf с разными next-hop, но одинаковой стоимости (local-preferance, weight, AS-Path).
 
