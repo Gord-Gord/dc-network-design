@@ -295,7 +295,6 @@ router bgp 64520
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf2_ipv6_bgp.png)
     - Leaf3:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/Leaf3_ipv6_bgp.png)
-
 Как видим, на каждом Leaf-коммутаторе мы получаем анонсы до других Leaf с разными next-hop, но одинаковой стоимости (local-preferance, weight, AS-Path).
 
 - Далее посмотрим какие маршруты получены по BGP и внесены в таблицы маршрутизации каждого устройства:
