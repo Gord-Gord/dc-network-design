@@ -276,7 +276,7 @@ Spine1#
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bfd_peers.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bfd_peers.png)
 
-- Далее смотрим установилось ли у нас BGP-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id BGP-соседа:
+- Далее смотрим установилось ли у нас BGP-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Estab в колонке State в строке с указанием IPv6-адреса BGP-соседа:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bgp_neighbors.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bgp_neighbors.png)  
