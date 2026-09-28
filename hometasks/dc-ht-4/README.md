@@ -268,6 +268,12 @@ Spine1#
 ```
 Да! Мы видим информация поменялась, теперь Origin INCOMPLETE.
 
+BGP по умолчанию выбирает только один наилучший путь и устанавливает его в FIB. Для повышения отказоустойчивости нам необходимо задействовать механизм Equal-Cost Multi-Path (ECMP). который позволит использовать несколько next-hop для достижения каждого Leaf. Примем, что максимальное количество next-hop до каждого Leaf у нас не будет превышать 4. Сделаем соответствующие настройки на каждом коммутаторе:
+```
+router bgp 64520
+ maximum-paths 4
+```
+
 ### Проверка результатов работы
 
 - В начале убедимся в установлении соседств bfd (статус Up в колонке State):
@@ -280,10 +286,24 @@ Spine1#
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bgp_neighbors.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bgp_neighbors.png)  
     
+- Интересно посмотреть, что каждое устройство получает по протоколу BGP:
+    - Spine-коммутаторы:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_ipv6_bgp.png)
+    - Leaf1:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leav1_ipv6_bgp.png)
+    - Leaf2:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leav2_ipv6_bgp.png)
+    - Leaf3:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leav3_ipv6_bgp.png)
+
+Как видим, на каждом Leaf-коммутаторе мы получаем анонсы до других Leaf с разными next-hop, но одинаковой стоимости (local-preferance, weight, AS-Path).
+
 - Далее посмотрим какие маршруты получены по BGP и внесены в таблицы маршрутизации каждого устройства:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/spines_bgp_routes.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-4/leaves_bgp_routes.png)
+На скрине с Leaf-коммутаторов в таблице маршрутизации каждого Leaf видим по два next-hop до loopback других Leaf-ов.
+
 
 
 - Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
@@ -340,7 +360,8 @@ peer-filter LEAF-AS-NUMBERS
 router bgp 64520
    router-id 10.1.1.1
    timers bgp 3 9
-   bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBES
+   maximum-paths 4
+   bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBERS
    neighbor LEAF-UNDERLAY peer group
    neighbor LEAF-UNDERLAY bfd
    redistribute connected route-map rm-connected
@@ -400,6 +421,7 @@ router bgp 64520
    router-id 10.1.1.2
    no bgp default ipv4-unicast
    timers bgp 3 9
+   maximum-paths 4
    bgp listen range fd12:dc1:1:200::/55 peer-group LEAF-UNDERLAY peer-filter LEAF-AS-NUMBERS
    neighbor LEAF-UNDERLAY peer group
    neighbor LEAF-UNDERLAY bfd
@@ -452,6 +474,7 @@ route-map rm-connected permit 10
 router bgp 64521
    router-id 10.1.1.3
    timers bgp 3 9
+   maximum-paths 4
    neighbor SPINE-UNDERLAY peer group
    neighbor SPINE-UNDERLAY bfd
    neighbor fd12:dc1:1:200::1 peer group SPINE-UNDERLAY
@@ -507,6 +530,7 @@ route-map rm-connected permit 10
 router bgp 64522
    router-id 10.1.1.4
    timers bgp 3 9
+   maximum-paths 4
    neighbor SPINE-UNDERLAY peer group
    neighbor SPINE-UNDERLAY bfd
    neighbor fd12:dc1:1:201::1 peer group SPINE-UNDERLAY
@@ -562,6 +586,7 @@ route-map rm-connected permit 10
 router bgp 64523
    router-id 10.1.1.5
    timers bgp 3 9
+   maximum-paths 4
    neighbor SPINE-UNDERLAY peer group
    neighbor SPINE-UNDERLAY bfd
    neighbor fd12:dc1:1:202::1 peer group SPINE-UNDERLAY
