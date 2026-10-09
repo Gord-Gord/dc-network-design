@@ -104,6 +104,136 @@ Spine1(config-if-Et1-3)#isis network point-to-point
    Spine1(config-if-Et1-3)#authentication mode sha key-id 33333
    Spine1(config-if-Et1-3)#authentication key-id 33333 algorithm sha-256 key 7 a8n1JXStqfBfR+URg/kKog== level-1
    ```
+   - проверяем работу аутентификации на примере IS-IS соседства коммутаторов Spine1 и Leaf3:
+       - вначале убеждаемся, что соседство между ними на данный момент установлено и маршруты мы получаем: 
+       ```
+       Leaf3#show isis neighbors
+
+       Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+       UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    26          0B
+       UNDERLAY  default  Spine2           L1   Ethernet2          P2P               UP    30          0D
+       Leaf3#show ipv6 route isis
+       
+       VRF: default
+       Displaying 4 of 8 IPv6 routing table entries
+       Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+              B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+              I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+              NG - Nexthop Group Static Route, M - Martian,
+              DP - Dynamic Policy Route, L - VRF Leaked,
+              RC - Route Cache Route
+       
+        I L1     fd12:dc1:1::1/128 [115/20]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+        I L1     fd12:dc1:1::2/128 [115/20]
+                  via fe80::5200:ff:fecb:38c2, Ethernet2
+        I L1     fd12:dc1:1:2::1/128 [115/30]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+                  via fe80::5200:ff:fecb:38c2, Ethernet2
+        I L1     fd12:dc1:1:2::2/128 [115/30]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+                  via fe80::5200:ff:fecb:38c2, Ethernet2
+           ```
+       - выключаем авторизацию на уровне процесса isis на коммутаторе Leaf3:
+           ```
+           Leaf3(config-router-isis)#no authentication key-id 33333 algorithm sha-256 key 7 a8n1JXStqfBfR+URg/kKog== level-1
+           Leaf3(config-router-isis)#no authentication mode sha key-id 33333
+           ```
+       - очищаем instance UNDERLAY процесса isis:
+           ```
+           Leaf3(config-router-isis)#clear isis UNDERLAY instance
+
+           IS-IS instance UNDERLAY cleared.
+           ```
+       - и теперь вновь смотрим соседство и маршруты:
+           ```
+           Leaf3(config-router-isis)#show isis neighbors
+
+           Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+           UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    29          0B
+           UNDERLAY  default  Spine2           L1   Ethernet2          P2P               UP    29          0D
+    
+           Leaf3(config)#show ipv6 route isis
+           
+           VRF: default
+           Displaying 4 of 8 IPv6 routing table entries
+           Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+                  B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+                  I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+                  NG - Nexthop Group Static Route, M - Martian,
+                  DP - Dynamic Policy Route, L - VRF Leaked,
+                  RC - Route Cache Route
+           
+            I L1     fd12:dc1:1::1/128 [115/20]
+                      via fe80::5200:ff:fed7:ee0b, Ethernet1
+            I L1     fd12:dc1:1::2/128 [115/20]
+                      via fe80::5200:ff:fecb:38c2, Ethernet2
+            I L1     fd12:dc1:1:2::1/128 [115/30]
+                      via fe80::5200:ff:fed7:ee0b, Ethernet1
+                      via fe80::5200:ff:fecb:38c2, Ethernet2
+            I L1     fd12:dc1:1:2::2/128 [115/30]
+                      via fe80::5200:ff:fed7:ee0b, Ethernet1
+                      via fe80::5200:ff:fecb:38c2, Ethernet2
+
+           Spine1#show isis neighbors
+           
+           Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+           UNDERLAY  default  Leaf1            L1   Ethernet1          P2P               UP    25          09
+           UNDERLAY  default  Leaf2            L1   Ethernet2          P2P               UP    27          0B
+           UNDERLAY  default  0100.0100.1005   L1   Ethernet3          P2P               UP    25          09
+           Spine1#show ipv6 route isis
+           
+           VRF: default
+           Displaying 3 of 7 IPv6 routing table entries
+           Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+                  B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+                  I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+                  NG - Nexthop Group Static Route, M - Martian,
+                  DP - Dynamic Policy Route, L - VRF Leaked,
+                  RC - Route Cache Route
+           
+            I L1     fd12:dc1:1::2/128 [115/30]
+                      via fe80::5200:ff:fed5:5dc0, Ethernet1
+                      via fe80::5200:ff:fe03:3766, Ethernet2
+            I L1     fd12:dc1:1:2::1/128 [115/20]
+                      via fe80::5200:ff:fed5:5dc0, Ethernet1
+            I L1     fd12:dc1:1:2::2/128 [115/20]
+                      via fe80::5200:ff:fe03:3766, Ethernet2
+           ```
+       Как видим, несмотря на то, что соседство между коммутаторами установлено, информация о Loopback-интерфейсе 0 коммутатора Leaf3 у Spine1 уже отсутствует в GRT. Это объяснятся тем, что аутентификация в настройках процесса IS-IS на Leaf3 выключена, а значит отключена и проверка поступающих пакетов LSP. Но маршрутная информация продолжает поступать на Leaf3 и попадает в его GRT.  
+       А вот LSP от Leaf3 к коммутатору Spine1 уже идут без ключа и соответственно не проходят аутентификацию на Spine1. Он продолжает их проверять, ведь у него она включена. Информация, которую они в себе несут, не попадает в GRT.
+       - далее выключаем аутентификацию на интерфейсе Ethernet 2, сбрасываем соседство в instance UNDERLAY и смотрим результат:
+       ```
+       Leaf3(config)#interface ethernet 2
+       Leaf3(config-if-Et2)#no isis authentication key-id 33333 algorithm sha-256 key 7 a8n1JXStqfBfR+URg/kKog==
+       Leaf3(config-if-Et2)#clear isis UNDERLAY neighbor all
+       
+       Leaf3(config-if-Et2)#show isis neighbor
+       
+       Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+       UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    29          0B
+       UNDERLAY  default  Spine2           L1   Ethernet2          P2P               INIT  25          0D
+       Leaf3#show ipv6 route isis
+
+       VRF: default
+       Displaying 4 of 8 IPv6 routing table entries
+       Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+              B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+              I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+              NG - Nexthop Group Static Route, M - Martian,
+              DP - Dynamic Policy Route, L - VRF Leaked,
+              RC - Route Cache Route
+       
+        I L1     fd12:dc1:1::1/128 [115/20]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+        I L1     fd12:dc1:1::2/128 [115/40]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+        I L1     fd12:dc1:1:2::1/128 [115/30]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+        I L1     fd12:dc1:1:2::2/128 [115/30]
+                  via fe80::5200:ff:fed7:ee0b, Ethernet1
+        ```
+        Здесь мы видим, что соседство со Spine2, ранее установленое по Ethernet2, нарушено, а все маршруты к Loopback-интерфейсам других коммутаторов построены через Ethernet1.
 
 ### Траблшутинг
 
