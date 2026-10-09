@@ -133,12 +133,12 @@ Spine1(config-if-Et1-3)#isis network point-to-point
         I L1     fd12:dc1:1:2::2/128 [115/30]
                   via fe80::5200:ff:fed7:ee0b, Ethernet1
                   via fe80::5200:ff:fecb:38c2, Ethernet2
-           ```
+       ```
        - выключаем авторизацию на уровне процесса isis на коммутаторе Leaf3:
-           ```
-           Leaf3(config-router-isis)#no authentication key-id 33333 algorithm sha-256 key 7 a8n1JXStqfBfR+URg/kKog== level-1
-           Leaf3(config-router-isis)#no authentication mode sha key-id 33333
-           ```
+       ```
+       Leaf3(config-router-isis)#no authentication key-id 33333 algorithm sha-256 key 7 a8n1JXStqfBfR+URg/kKog== level-1
+       Leaf3(config-router-isis)#no authentication mode sha key-id 33333
+       ```
        - очищаем instance UNDERLAY процесса isis:
            ```
            Leaf3(config-router-isis)#clear isis UNDERLAY instance
