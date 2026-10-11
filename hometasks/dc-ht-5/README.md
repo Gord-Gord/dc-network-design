@@ -346,7 +346,7 @@ interface Vxlan1
    vxlan vlan 10 vni 1000010
    vxlan vlan 20 vni 1000020
 ```
-А в настройка процесс BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
+А в настройках процесса BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
 ```
 router bgp 64521
    vlan 10
@@ -373,7 +373,9 @@ router bgp 64520
 ### Проверка результатов работы
 
 - Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN:
+
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/VPC_are_pinging_VPC.png)
+
 Ок! Значит связность есть.
 
 - Далее смотрим установилось ли у нас BGP-EVPN-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id IS-IS-соседа:
@@ -382,14 +384,17 @@ router bgp 64520
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
     
 - Далее смотрим маршруты типа 2 и 3 на Spine-коммутаторах:
+
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spine-route-type2.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spine-route-type3.png)
 
 - Cмотрим маршруты типа 2 и 3 на Leaf-коммутаторах:
+
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type2.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type3.png)
 
 - Смотрим удалённые VTEP и типы тоннелей до них:
+
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-vxlan-vtep.png)
 
 Выводы:
@@ -398,8 +403,8 @@ router bgp 64520
 
 #### Листинги
 
-[Spine1.cfg](./Spine1.cfg)
-[Spine2.cfg](./Spine2.cfg)
-[Leaf1.cfg](./Leaf1.cfg)
-[Leaf2.cfg](./Leaf2.cfg)
+[Spine1.cfg](./Spine1.cfg)  
+[Spine2.cfg](./Spine2.cfg)  
+[Leaf1.cfg](./Leaf1.cfg)  
+[Leaf2.cfg](./Leaf2.cfg)  
 [Leaf3.cfg](./Leaf3.cfg)
