@@ -25,6 +25,11 @@
 В роли клиентов выступают виртуальные эмуляторы VPC. Именно будут являться источником трафика, именно их MAC-адреса будут транслироваться соседям по фабрике.
 ![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/scheme.png)
 
+В начале работы на каждом коммутаторе активируем в EOS мультиагентную архитектуру для протоколов маршрутизации. Это необходимо для функционирования EVPN.
+```
+service routing protocols model multi-agent
+```
+
 ### 2. Распределение адресного пространства
 
 В качестве протокола, на котором будет строиться Underlay, был выбран IPv6. IS-IS-соседство будем строить от Link-Local адресов.
@@ -63,14 +68,14 @@ Leaf3|fd12:dc1:1:2::5/128|10.1.1.5|0100.0100.1005|49.0001.0100.0100.1005.00
 - router-id 3-ой октет Порядковый номер POD - 1;  
 - router-id 4-ой октет - Порядковый номер устройства в POD.  
 
-У нас есть также виртуальные PC, играющие роль серверов. У них будет следующая IP-адресация:
+У нас есть также виртуальные PC, играющие роль серверов. Они работают каждый в своём VLAN. Назначим каждому VPC IP-адрес, а каждому VLAN свой VNI:
 
-Device|VLAN ID|IP-адрес
-------|-------|--------
-VPC1|10|10.10.1.3/24
-VPC2|20|10.20.1.18/24
-VPC3|10|10.10.1.14/24
-VPC4|20|10.20.1.5/24
+Device|IP-адрес|VLAN ID|VNI
+------|--------|-------|--
+VPC1|10.10.1.3/24|10|1000010
+VPC2|10.20.1.18/24|20|1000020
+VPC3|10.10.1.14/24|10|1000010
+VPC4|10.20.1.5/24|20|1000020
 
 Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
 
@@ -367,296 +372,27 @@ router bgp 64520
 
 ### Проверка результатов работы
 
-- В начале убедимся в установлении соседств bfd (статус Up в колонке State):
+- Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/VPC_are_pinging_VPC.png)
+Ок! Значит связность есть.
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_bfd_peers.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_bfd_peers.png)
+- Далее смотрим установилось ли у нас BGP-EVPN-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id IS-IS-соседа:
 
-- Далее смотрим установилось ли у нас IS-IS-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id IS-IS-соседа:
-
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_isis_neighbors.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_isis_neighbors.png)  
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
     
-- Далее посмотрим какие маршруты получены по IS-IS и внесены в таблицу маршрутизации:
+- Далее смотрим маршруты типа 2 и 3 на Spine-коммутаторах:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spine-route-type2.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spine-route-type3.png)
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_isis_routes.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_isis_routes.png)
+- Cмотрим маршруты типа 2 и 3 на Leaf-коммутаторах:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type2.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type3.png)
 
+- Смотрим удалённые VTEP и типы тоннелей до них:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-vxlan-vtep.png)
 
-- Проверим сетевую связность между интерфейсами loopback 0 разных коммутаторов:
-    - Spine-коммутаторы пингуют loopback 0 Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Spine-коммутатора:  
-![Спайны пингуют лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/spines_are_pinging_leaves.png)  
-    - Leaf-коммутаторы пингуют loopback 0 Spine-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
-![Лифы пингуют спайны](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_are_pinging_spines.png)  
-    - Leaf-коммутаторы пингуют loopback 0 других Leaf-коммутаторов, при этом в качестве исходящего интерфейса обязательно указываем loopback 0 Leaf-коммутатора:
-![Лифы пингуют Лифы](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/leaves_are_pinging_leaves.png)
 
 #### Листинги
 
-##### Spine-1
-```
-hostname Spine1
-!
-spanning-tree mode mstp
-!
-interface Ethernet1
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet2
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet3
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Loopback0
-   ipv6 address fd12:dc1:1::1/128
-   isis enable UNDERLAY
-   isis circuit-type level-1
-!
-interface Management1
-!
-no ip routing
-!
-ipv6 unicast-routing
-!
-router isis UNDERLAY
-   net 49.0001.0100.0100.1001.00
-   !
-   address-family ipv6 unicast
-!
-end
-```
-
-##### Spine-2
-```
-hostname Spine2
-!
-spanning-tree mode mstp
-!
-interface Ethernet1
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet2
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet3
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Loopback0
-   ipv6 address fd12:dc1:1::2/128
-   isis enable UNDERLAY
-   isis circuit-type level-1
-!
-interface Management1
-!
-no ip routing
-!
-ipv6 unicast-routing
-!
-router isis UNDERLAY
-   net 49.0001.0100.0100.1002.00
-   !
-   address-family ipv6 unicast
-!
-end
-```
-
-##### Leaf-1
-```
-hostname Leaf1
-!
-spanning-tree mode mstp
-!
-interface Ethernet1
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet2
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet3
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Loopback0
-   ipv6 address fd12:dc1:1::3/128
-   isis enable UNDERLAY
-!
-interface Management1
-!
-no ip routing
-!
-ipv6 unicast-routing
-!
-router isis UNDERLAY
-   net 49.0001.0100.0100.1003.00
-   !
-   address-family ipv6 unicast
-!
-end
-```
-
-##### Leaf-2
-```
-hostname Leaf2
-!
-spanning-tree mode mstp
-!
-interface Ethernet1
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet2
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet3
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Loopback0
-   ipv6 address fd12:dc1:1::4/128
-   isis enable UNDERLAY
-!
-interface Management1
-!
-no ip routing
-!
-ipv6 unicast-routing
-!
-router isis UNDERLAY
-   net 49.0001.0100.0100.1004.00
-   !
-   address-family ipv6 unicast
-!
-end
-```
-
-##### Leaf-3
-```
-hostname Leaf3
-!
-spanning-tree mode mstp
-!
-interface Ethernet1
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet2
-   mtu 9000
-   no switchport
-   ipv6 enable
-   isis enable UNDERLAY
-   no isis bfd
-   isis ipv6 bfd
-   isis circuit-type level-1
-   isis network point-to-point
-!
-interface Ethernet3
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Loopback0
-   ipv6 address fd12:dc1:1::5/128
-   isis enable UNDERLAY
-!
-interface Management1
-!
-no ip routing
-!
-ipv6 unicast-routing
-!
-router isis UNDERLAY
-   net 49.0001.0100.0100.1005.00
-   !
-   address-family ipv6 unicast
-!
-end
-```
+[Spine1.cfg](./Spine1.cfg)
