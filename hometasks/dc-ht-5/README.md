@@ -63,6 +63,15 @@ Leaf3|fd12:dc1:1:2::5/128|10.1.1.5|0100.0100.1005|49.0001.0100.0100.1005.00
 - router-id 3-ой октет Порядковый номер POD - 1;  
 - router-id 4-ой октет - Порядковый номер устройства в POD.  
 
+У нас есть также виртуальные PC, играющие роль серверов. У них будет следующая IP-адресация:
+
+Device|VLAN ID|IP-адрес
+------|-------|--------
+VPC1|10|10.10.1.3/24
+VPC2|20|10.20.1.18/24
+VPC3|10|10.10.1.14/24
+VPC4|20|10.20.1.5/24
+
 Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
 
 ### Настройка IS-IS
@@ -200,12 +209,16 @@ Spine1(config-if-Et1-3)#isis network point-to-point
             I L1     fd12:dc1:1:2::2/128 [115/20]
                       via fe80::5200:ff:fe03:3766, Ethernet2
            ```
-       Как видим, несмотря на то, что соседство между коммутаторами установлено, информация о Loopback-интерфейсе 0 коммутатора Leaf3 у Spine1 уже отсутствует в GRT. Это объяснятся тем, что аутентификация в настройках процесса IS-IS на Leaf3 выключена, а значит отключена и проверка поступающих пакетов LSP. Но маршрутная информация продолжает поступать на Leaf3 и попадает в его GRT.  
-       А вот LSP от Leaf3 к коммутатору Spine1 уже идут без ключа и соответственно не проходят аутентификацию на Spine1. Он продолжает их проверять, ведь у него она включена. Информация, которую они в себе несут, не попадает в GRT.
+       Как видим, соседство между коммутаторами по-прежнему установлено. При этом, несмотря на выключенную аутентификацию, в GRT присутствует маршрутная информация, полученная по протоколу IS‑IS.  
+Это объясняется тем, что аутентификация в настройках процесса IS‑IS на Leaf3 отключена — соответственно, отключена и проверка поступающих пакетов LSP. Поэтому маршрутная информация продолжает поступать на Leaf3 и попадает в его GRT.  
+
+В то же время LSP от Leaf3 к коммутатору Spine1 идут без ключа и, соответственно, не проходят аутентификацию на Spine1: он продолжает их проверять, так как аутентификация на нём включена. В результате информация из этих пакетов не попадает в GRT Spine1 — в частности, у него уже отсутствует информация о Loopback‑интерфейсе 0 коммутатора Leaf3.
+
        - далее выключаем аутентификацию на интерфейсе Ethernet 2, сбрасываем соседство в instance UNDERLAY и смотрим результат:
        ```
        Leaf3(config)#interface ethernet 2
        Leaf3(config-if-Et2)#no isis authentication key-id 33333 algorithm sha-256 key 7 a8n1JXStqfBfR+URg/kKog==
+       Leaf3(config-if-Et2)#no isis authentication mode sha key-id 33333
        Leaf3(config-if-Et2)#clear isis UNDERLAY neighbor all
        
        Leaf3(config-if-Et2)#show isis neighbor
@@ -233,35 +246,124 @@ Spine1(config-if-Et1-3)#isis network point-to-point
         I L1     fd12:dc1:1:2::2/128 [115/30]
                   via fe80::5200:ff:fed7:ee0b, Ethernet1
         ```
-        Здесь мы видим, что соседство со Spine2, ранее установленое по Ethernet2, нарушено, а все маршруты к Loopback-интерфейсам других коммутаторов построены через Ethernet1.
+        Здесь мы видим, что соседство со Spine2, ранее установленое по Ethernet2, нарушено, а все маршруты к Loopback-интерфейсам других коммутаторов построены через Ethernet1.  
+        Вывод: аутентификация устройство по протоколу IS-IS работает.
 
-### Траблшутинг
+### Настроука EBGP (Overlay)
 
-После выполнения настроек на наших коммутаторах проверяем установилось ли соседство IS-IS. Поочередно на каждом коммутаторе командой "show isis neighbors" смотрим установленные коммутаторами отношения смежности по протоколу IS-IS.  
-Вывод с коммутатора Spine1:
+Процедура настройки EBGP на Spine- и Leaf-коммутаторах будут отличаться друг от друга.  
+Опишем сначала процедуру настройки на Spine-коммутаторе:
+- объявим peer-filter LEAF-AS-NUMBERS, включающий диапазон номеров приватных AS на Leaf 64521-64535;
 ```
-Spine1(config-router-isis)#show isis neighbors
+peer-filter LEAF-AS-NUMBERS
+   10 match as-range 64512-64535 result accept
+```
+- создаём на Spine-коммутаторах процесс BGP 64520, при этом указываем какую сеть IPv6 (Loopback 0) слушать, чтобы установить соседство с указанными в peer-filter номерами AS:
+```
+router bgp 64520
+   router-id 10.1.1.1
+   no bgp default ipv4-unicast
+   maximum-paths 4 ecmp 4
+   bgp listen range fd12:dc1:1:2::/64 peer-group LEAVES peer-filter LEAF-AS-NUMBERS
+   neighbor LEAVES peer group
+   neighbor LEAVES update-source Loopback0
+   neighbor LEAVES ebgp-multihop 2
+   neighbor LEAVES route-reflector-client
+   neighbor LEAVES send-community extended
+   neighbor LEAVES maximum-routes 0
+   !
+   address-family evpn
+      neighbor LEAVES activate
+   !
+   address-family ipv4
+      neighbor LEAVES activate
+   !
+   address-family ipv6
+      neighbor LEAVES activate
+```
+Незабываем указать, что наши Spine будут являться клиентами и отражать маршруты, а также то, что максимальное число транзитных хопов для EBGP 2.
 
-Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
-UNDERLAY  default  Leaf1            L1   Ethernet1          P2P               UP    29          0B
-UNDERLAY  default  Leaf2            L1   Ethernet2          P2P               INIT  24          0B
-UNDERLAY  default  Leaf3            L1   Ethernet3          P2P               UP    29          0B
+На Leaf-коммутаторах нет необходимости создавать peer-filter так, как ASN у наших Spine-коммутаторов один 64520. Кроме того, мы здесь должны будем указать IPv6 адреса, прописанные на Loopback 0 Spine-коммутаторов (пример для Leaf1):
 ```
-Как видим, коммутатор Spine1 установил соседство с Leaf1 и Leaf3, но с Leaf2 соседства нет.
-Включаем перехват пакетов на Spine1 на интерфейсе eth2, на котором у нас линк с Leaf2. А затем на интерфейсе eth1 коммутатора Leaf2. Видим, что коммутаторы шлют пакеты с сообщениями IS-IS Hello. Изучаем содержимое этих сообщений. Видим что у обоих коммутаторов разные PDU Lenght.
-Spine1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark1.png)
-Leaf2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-3/wireshark2.png)
-Значит допустили ошибку. Исправляем значения MTU на интерфейсах ethernet 1 и 2 Leaf2 и устанавливаем его 9000, как и у всех остальных.  
-Также обращаем внимание, что Leaf-ы установили соседство только со Spine1, а со Spine2 соседства нет.
+router bgp 64521
+   router-id 10.1.1.3
+   no bgp default ipv4-unicast
+   maximum-paths 4 ecmp 4
+   neighbor SPINES peer group
+   neighbor SPINES remote-as 64520
+   neighbor SPINES update-source Loopback0
+   neighbor SPINES ebgp-multihop 2
+   neighbor SPINES send-community extended
+   neighbor fd12:dc1:1::1 peer group SPINES
+   neighbor fd12:dc1:1::2 peer group SPINES
+   !
+   address-family evpn
+      neighbor SPINES activate
+   !
+   address-family ipv4
+      neighbor SPINES activate
+   !
+   address-family ipv6
+      neighbor SPINES activate
 ```
-Leaf3#show isis neighbors
+Смотрим что у нас получилось:
+- Spine1:
+```
+Spine1#show ipv6 bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.1.1, local AS number 64520
+Neighbor Status Codes: m - Under maintenance
+  Neighbor        V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  fd12:dc1:1:2::1 4 64521             63        58    0    0 00:43:28 Estab   0      0
+  fd12:dc1:1:2::2 4 64522             64        62    0    0 00:43:13 Estab   0      0
+  fd12:dc1:1:2::3 4 64523             62        61    0    0 00:43:36 Estab   0      0
+```
+- Leaf1:
+```
+Leaf1#show ipv6 bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.1.3, local AS number 64521
+Neighbor Status Codes: m - Under maintenance
+  Neighbor      V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  fd12:dc1:1::1 4 64520             60        66    0    0 00:45:32 Estab   0      0
+  fd12:dc1:1::2 4 64520             62        66    0    0 00:45:44 Estab   0      0
+```
+Итак, BGP-соседство установлено, переходим к следующему этапу, а именно к построению EVPN.
 
-Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
-UNDERLAY  default  Spine1           L1   Ethernet1          P2P               UP    27          0D
+### Настройка EVPN
+
+На каждом Leaf-коммутаторе создаём интерфейсы VXLAN и каждому VLAN сопостовляем его VNI:
 ```
-Внимательно анализируем настройки протокола IS-IS на Spine2 и видим, что мы на его интерфейсах указали уровень отношений L2 тогда, как на всех интерфейсах всех Leaf-ов уровень отношений L1. Устраняем это расхождение.
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan encapsulation ipv6
+   vxlan vlan 10 vni 1000010
+   vxlan vlan 20 vni 1000020
+```
+А в настройка процесс BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
+```
+router bgp 64521
+   vlan 10
+      rd 1.1.1.3:10
+      route-target both 64520:1000010
+      redistribute learned
+   !
+   vlan 20
+      rd 1.1.1.3:20
+      route-target both 64520:1000020
+      redistribute learned
+   !
+   address-family evpn
+      neighbor SPINES activate
+```
+На Spine-коммутаторах этого делать не нужно, там достаточно включить EVPN:
+```
+router bgp 64520
+ address-family evpn
+    neighbor LEAVES activate
+```
+
 
 ### Проверка результатов работы
 
