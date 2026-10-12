@@ -397,6 +397,10 @@ router bgp 64520
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-vxlan-vtep.png)
 
+- Таблицы MAC-адрессов каждого Leaf:
+
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-mac-address-table.png)
+
 Выводы:
 1. Настроен BGP peering между Leaf и Spine в AF l2vpn evpn.
 2. Связанность между клиентами обеспечена.
