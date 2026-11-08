@@ -4,7 +4,7 @@
 ## Построение фабрики VXLAN/EVPN для двух POD с использованием технологии Multisite
 
 ### Цель:
-1. В разных населенных пунктах построить два POD (Site) по топологии Clos на основе VxLAN EVPN для L2 связанности между клиентами
+1. В городах А и Б построить два POD, по одному в каждом, по топологии Clos на основе VxLAN EVPN для L2 связности между клиентами
 2. Обеспечить сетевую связность между POD(Site) с использованием технологии Multisite
 
 ### План работ
@@ -12,7 +12,8 @@
 2. Распределить адресное пространство
 3. Настроить IS-IS в Underlay-сети в каждом POD
 4. Настроить Overlay на основе iBGP в каждом POD
-5. Настроить DCI между BGW каждого POD
+6. Настроить VXLAN в каждом POD
+5. Настроить DCI между BGW
 6. Проверка результатов работы
 
 ### Краткое oписание объекта
@@ -24,7 +25,7 @@
 
 Схема по топологии Clos была собрана в EVE-NG. В качестве основных элементов схемы, Spine-, Leaf-, и BGW-оммутаторов, использовались виртуальные образы Arista vEOS-lab версии 4.29.2F.
 В роли клиентов выступают виртуальные эмуляторы VPC. Именно будут являться источником трафика, именно их MAC-адреса будут транслироваться соседям по фабрике.
-В роли маршрутизатора ISP выступает образ Cisco IOSv верси 15.7(3)M3.
+В роли маршрутизатора ISP выступает образ Cisco vIOS версии 15.7(3)M3.
 ![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/scheme.png)
 
 В начале работы на каждом коммутаторе активируем в EOS мультиагентную архитектуру для протоколов маршрутизации. Это необходимо для функционирования EVPN.
@@ -36,7 +37,9 @@ service routing protocols model multi-agent
 
 В качестве протокола, на котором будет строиться Underlay, был выбран IPv6. IS-IS-соседство будем строить от Link-Local адресов.
 
-Таким образом, остаётся назначить IPv6-адреса только интерфейсам loopback 0 и loopback 1. Пусть IPv6-адреса, назначаемые интерфейсам loopback 0 на Spine-коммутаторах принадлежат сети fd12:dcN:1:0::/63, а на Leaf- и BGW-коммутаторах сети fd12:dcN:1:2::/63, где N - номер POD.
+Таким образом, остаётся назначить IPv6-адреса только интерфейсам loopback 0, loopback 1 и интерфейсам BGW, которые будут состыкованными маршрутизатором ISP.
+
+Пусть IPv6-адреса, назначаемые интерфейсам loopback 0 на Spine-коммутаторах принадлежат сети fd12:dcN:1:0::/63, а на Leaf- и BGW-коммутаторах сети fd12:dcN:1:2::/63, где N - номер POD.
 
 Также для каждого коммутатора необходимо определить NET (Network Entity Title) - уникальный идентификатор.
 NET состоит из нескольких частей:
@@ -63,16 +66,15 @@ BGW1-1|fd12:dc1:1::4/128|fd12:dc1:100::100|10.1.1.4|0100.0100.1004|49.0001.0100.
 BGW1-2|fd12:dc1:1::5/128|fd12:dc1:100::100|10.1.1.5|0100.0100.1005|49.0001.0100.0100.1005.00
 Spine2-1|fd12:dc2:1::1/128| нет |10.2.1.1|0100.0100.1001|49.0002.0100.0100.1001.00
 Spine2-2|fd12:dc2:1::2/128| нет |10.2.1.2|0100.0100.1002|49.0002.0100.0100.1002.00
-Leaf2-1|fd12:dc2:1::3/128| нет |10.2.1.3|0100.0100.1003|49.0002.0100.0100.1005.00
+Leaf2-1|fd12:dc2:1::5/128| нет |10.2.1.3|0100.0100.1005|49.0002.0100.0100.1005.00
 BGW2-1|fd12:dc2:1::4/128|fd12:dc2:100::100|10.2.1.4|0100.0100.1004|49.0002.0100.0100.1004.00
-BGW2-2|fd12:dc2:1::5/128|fd12:dc2:100::100|10.2.1.5|0100.0100.1005|49.0002.0100.0100.1003.00
+BGW2-2|fd12:dc2:1::3/128|fd12:dc2:100::100|10.2.1.5|0100.0100.1003|49.0002.0100.0100.1003.00
 
 где:  
-- loopback 0 3-ий и 4-ый октеты - Порядковый номер ЦОДа - dc1;  
-- loopback 0 6-ой октет - Порядковый номер POD - 1;  
+- loopback 0 4-ый октет - Порядковый номер POD;  
 - loopback 0 16-ый октет Порядковый номер устройства в POD;  
-- router-id 2-ой октет Порядковый номер ЦОДа - 1;  
-- router-id 3-ой октет Порядковый номер POD - 1;  
+- loopback 1 4-ый октет - Порядковый номер POD;  
+- router-id 2-ой октет Порядковый номер POD;  
 - router-id 4-ой октет - Порядковый номер устройства в POD.  
 
 У нас есть также виртуальные PC, играющие роль серверов. Они работают каждый в своём VLAN. Назначим каждому VPC IP-адрес, а каждому VLAN свой VNI:
@@ -84,7 +86,17 @@ VPC1-2|10.20.1.8/24|20|1000020
 VPC2-1|10.10.1.14/24|10|1000010
 VPC2-2|10.20.1.5/24|20|1000020
 
-Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0 и 1 каждого коммутатора. Они показаны в листингах конфигураций оборудования.
+Примечание: Для краткости не будем приводить здесь команды назначения IPv6 адресов на интерфейсы loopback 0, loopback 1 коммутаторов. Они будут показаны в листингах конфигураций оборудования.
+
+Распределим адресное пространство для сети DCI:
+
+Device|Ethernet 3|Интерфейсы ISP-Router
+------|----------|---------------------
+BGW1-1|fd12:dc1:1:201::2/64| Gi0/0 fd12:dc1:1:201::1/64 
+BGW1-2|fd12:dc1:1:202::2/64| Gi0/1 fd12:dc1:1:202::1/64 
+BGW2-1|fd12:dc2:1:201::2/64| Gi0/3 fd12:dc2:1:201::1/64 
+BGW2-2|fd12:dc2:1:202::2/64| Gi0/2 fd12:dc2:1:202::1/64 
+
 
 ### 3. Настройка IS-IS (Underlay)
 На примере коммутатора Spine1-1 покажем как выполнялась конфигурация коммутаторов в POD1:
@@ -162,119 +174,197 @@ Spine1-1(config-if-Et1-3)#isis network point-to-point
 
 ### 4. Настройка EBGP (Overlay)
 
-Процедура настройки EBGP на Spine- и Leaf-коммутаторах будут отличаться друг от друга.  
-Опишем сначала процедуру настройки на Spine-коммутаторе:
-- объявим peer-filter LEAF-AS-NUMBERS, включающий диапазон номеров приватных AS на Leaf 64521-64535;
+Процедуры настройки EBGP на Spine-, Leaf-, BGW-коммутаторах будут отличаться друг от друга.  
+Вначале oпишем процедуру настройки на Spine-коммутаторе:
+- создаём на Spine-коммутаторах процесс BGP 64521, при этом указываем какую сеть IPv6 (Loopback 0) слушать, чтобы установить соседство с указанными в peer-filter номерами AS:
 ```
-peer-filter LEAF-AS-NUMBERS
-   10 match as-range 64512-64535 result accept
-```
-- создаём на Spine-коммутаторах процесс BGP 64520, при этом указываем какую сеть IPv6 (Loopback 0) слушать, чтобы установить соседство с указанными в peer-filter номерами AS:
-```
-router bgp 64520
+router bgp 64521
    router-id 10.1.1.1
    no bgp default ipv4-unicast
-   maximum-paths 4 ecmp 4
-   bgp listen range fd12:dc1:1:2::/64 peer-group LEAVES peer-filter LEAF-AS-NUMBERS
-   neighbor LEAVES peer group
-   neighbor LEAVES update-source Loopback0
-   neighbor LEAVES ebgp-multihop 2
-   neighbor LEAVES route-reflector-client
-   neighbor LEAVES send-community extended
-   neighbor LEAVES maximum-routes 0
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   bgp listen range fd12:dc1:1::/64 peer-group SITE1-LEAVES remote-as 64521
+   neighbor SITE1-LEAVES peer group
+   neighbor SITE1-LEAVES update-source Loopback0
+   neighbor SITE1-LEAVES route-reflector-client
+   neighbor SITE1-LEAVES send-community extended
+   neighbor SITE1-LEAVES maximum-routes 0
    !
    address-family evpn
-      neighbor LEAVES activate
+      neighbor SITE1-LEAVES activate
    !
    address-family ipv4
-      neighbor LEAVES activate
+      neighbor SITE1-LEAVES activate
    !
    address-family ipv6
-      neighbor LEAVES activate
+      neighbor SITE1-LEAVES activate
 ```
-Незабываем указать, что наши Spine будут являться клиентами и отражать маршруты, а также то, что максимальное число транзитных хопов для EBGP 2.
+Незабываем указать, что наши Spine будут являться клиентами и отражать маршруты.
 
-На Leaf-коммутаторах нет необходимости создавать peer-filter так, как ASN у наших Spine-коммутаторов один 64520. Кроме того, мы здесь должны будем указать IPv6 адреса, прописанные на Loopback 0 Spine-коммутаторов (пример для Leaf1):
+На Leaf- и BGW-коммутаторах мы должны будем указать IPv6 адреса, прописанные на Loopback 0 Spine-коммутаторов (пример для Leaf1):
 ```
 router bgp 64521
    router-id 10.1.1.3
    no bgp default ipv4-unicast
-   maximum-paths 4 ecmp 4
-   neighbor SPINES peer group
-   neighbor SPINES remote-as 64520
-   neighbor SPINES update-source Loopback0
-   neighbor SPINES ebgp-multihop 2
-   neighbor SPINES send-community extended
-   neighbor fd12:dc1:1::1 peer group SPINES
-   neighbor fd12:dc1:1::2 peer group SPINES
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   neighbor SITE1-SPINES peer group
+   neighbor SITE1-SPINES remote-as 64521
+   neighbor SITE1-SPINES update-source Loopback0
+   neighbor SITE1-SPINES send-community extended
+   neighbor fd12:dc1:1::1 peer group SITE1-SPINES
+   neighbor fd12:dc1:1::2 peer group SITE1-SPINES
    !
    address-family evpn
-      neighbor SPINES activate
+      neighbor SITE1-SPINES activate
    !
    address-family ipv4
-      neighbor SPINES activate
+      neighbor SITE1-SPINES activate
    !
    address-family ipv6
-      neighbor SPINES activate
+      neighbor SITE1-SPINES activate
 ```
 Смотрим что у нас получилось:
 - Spine1:
 ```
-Spine1#show ipv6 bgp summary
+Spine1-1(config)#show bgp summary
 BGP summary information for VRF default
-Router identifier 10.1.1.1, local AS number 64520
-Neighbor Status Codes: m - Under maintenance
-  Neighbor        V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
-  fd12:dc1:1:2::1 4 64521             63        58    0    0 00:43:28 Estab   0      0
-  fd12:dc1:1:2::2 4 64522             64        62    0    0 00:43:13 Estab   0      0
-  fd12:dc1:1:2::3 4 64523             62        61    0    0 00:43:36 Estab   0      0
+Router identifier 10.1.1.1, local AS number 64521
+Neighbor               AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
+------------- ----------- ------------- ----------------------- -------------- ---------- ----------
+fd12:dc1:1::3       64521 Established   L2VPN EVPN              Negotiated              4          4
+fd12:dc1:1::4       64521 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc1:1::5       64521 Established   L2VPN EVPN              Negotiated              2          2
 ```
 - Leaf1:
 ```
-Leaf1#show ipv6 bgp summary
 BGP summary information for VRF default
 Router identifier 10.1.1.3, local AS number 64521
-Neighbor Status Codes: m - Under maintenance
-  Neighbor      V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
-  fd12:dc1:1::1 4 64520             60        66    0    0 00:45:32 Estab   0      0
-  fd12:dc1:1::2 4 64520             62        66    0    0 00:45:44 Estab   0      0
+Neighbor               AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
+------------- ----------- ------------- ----------------------- -------------- ---------- ----------
+fd12:dc1:1::1       64521 Established   L2VPN EVPN              Negotiated              4          4
+fd12:dc1:1::2       64521 Established   L2VPN EVPN              Negotiated              4          4
 ```
 Итак, BGP-соседство установлено, переходим к следующему этапу, а именно к построению EVPN.
 
-### 5. Настройка EVPN
+### 5. Настройка VXLAN
 
-На каждом Leaf-коммутаторе создаём интерфейсы VXLAN и каждому VLAN сопостовляем его VNI:
+#### На Leaf-коммутаторе
+Создаём интерфейсы VXLAN и каждому VLAN сопостовляем его VNI:
 ```
+Leaf1-1#show running-config interface vxlan1
 interface Vxlan1
    vxlan source-interface Loopback0
    vxlan udp-port 4789
    vxlan encapsulation ipv6
    vxlan vlan 10 vni 1000010
    vxlan vlan 20 vni 1000020
+   vxlan vrf VRF2026 vni 1111111
+   vxlan learn-restrict any
 ```
 А в настройках процесса BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
 ```
 router bgp 64521
    vlan 10
-      rd 1.1.1.3:10
-      route-target both 64520:1000010
+      rd auto
+      route-target both 10:1000010
       redistribute learned
    !
    vlan 20
-      rd 1.1.1.3:20
-      route-target both 64520:1000020
+      rd auto
+      route-target both 20:1000020
       redistribute learned
    !
    address-family evpn
-      neighbor SPINES activate
+      neighbor SITE1-SPINES activate
+   !
 ```
-На Spine-коммутаторах этого делать не нужно, там достаточно включить EVPN:
+#### На BGW-коммутаторах
+Дело будет обстоять несколько иначе. Во-первых VXLAN здесь будет строиться от интерфейса loopback 1, а во-вторых мы зафиксируем MAC‑адрес, который устройство будет использовать как «виртуальный роутер» для VXLAN:
 ```
-router bgp 64520
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan virtual-router encapsulation mac-address 00:00:01:0a:fe:01
+   vxlan udp-port 4789
+   vxlan encapsulation ipv6
+   vxlan vlan 10 vni 1000010
+   vxlan vlan 20 vni 1000020
+   vxlan vrf VRF2026 vni 1111111
+   vxlan learn-restrict any
+```
+В настройках процесса BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
+```
+router bgp 64521
+   vlan 10
+      rd evpn domain all 10.1.1.4:10
+      route-target both 10:1000010
+      route-target import export evpn domain remote 10:10
+      redistribute learned
+   !
+   vlan 20
+      rd evpn domain all 10.1.1.4:20
+      route-target both 20:1000020
+      route-target import export evpn domain remote 20:20
+      redistribute learned
+   !
+   address-family evpn
+      neighbor SITE1-SPINES activate
+```
+#### На Spine-коммутаторах
+Делать ничего не нужно, там достаточно включить EVPN:
+```
+router bgp 64521
  address-family evpn
-    neighbor LEAVES activate
+    neighbor SITE1-LEAVES activate
 ```
 
+### 5. Настройка DCI между BGW
+
+#### Подготовка роутера ISP
+
+Мы будем использовать статическую маршрутизацию, поэтому на роутере ISP достаточно будет прописать  ipv6-адреса на интерфейсах для стыковки с BGW и прописать маршруты в таблицу маршрутизации:
+
+```
+interface GigabitEthernet0/3
+ mtu 9200
+ no ip address
+ duplex auto
+ speed 1000
+ media-type rj45
+ ipv6 address FD12:DC2:1:201::1/64
+ ipv6 enable
+
+ipv6 route FD12:DC1:100::100/128 FD12:DC1:1:201::2
+ipv6 route FD12:DC1:100::100/128 FD12:DC1:1:202::2
+ipv6 route FD12:DC2:100::100/128 FD12:DC2:1:201::2
+ipv6 route FD12:DC2:100::100/128 FD12:DC2:1:202::2
+```
+Важный момент: на интерфейсах мы установили MTU 9200, это необходимо, чтобы большие пакеты с VXLAN-инкапсуляцией свободно курсировали между PODами.
+
+#### Построение BGP-соседства между POD
+
+Для начало в настройках процесса BGP каждого BGW-коммутатора создадим peer-group DCI, укажем ASN того POD, с кем выстраиваем соседство, и укажем ipv6-адреса соседей.
+```
+router bgp 64521
+   router-id 10.1.1.4
+   no bgp default ipv4-unicast
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   neighbor DCI peer group
+   neighbor DCI remote-as 64522
+   neighbor DCI ebgp-multihop 2
+   neighbor DCI send-community extended
+   neighbor fd12:dc2:1:201::2 peer group DCI
+   neighbor fd12:dc2:1:202::2 peer group DCI
+```
+А теперь включаем эту группу в адресном семействе evpn, указываем то, что это будет удалённый домен и чтобы наш BGW при анонсе маршрутов во внутреннюю сеть указывал себя в качестве next-hop.
+```
+   address-family evpn
+      neighbor DCI activate
+      neighbor DCI domain remote
+      neighbor SITE1-SPINES activate
+      neighbor default next-hop-self received-evpn-routes route-type ip-prefix inter-domain
+```
 
 ### Проверка результатов работы
 
