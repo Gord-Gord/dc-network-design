@@ -5,7 +5,7 @@
 
 ### Цель:
 1. В городах А и Б построить два POD, по одному в каждом, по топологии Clos на основе VxLAN EVPN для L2 связности между клиентами
-2. Обеспечить сетевую связность между POD(Site) с использованием технологии Multisite
+2. Обеспечить сетевую связность между POD с использованием технологии Multisite
 
 ### План работ
 1. Собрать схему Clos
@@ -343,7 +343,7 @@ ipv6 route FD12:DC2:100::100/128 FD12:DC2:1:202::2
 
 #### Построение BGP-соседства между POD
 
-Для начало в настройках процесса BGP каждого BGW-коммутатора создадим peer-group DCI, укажем ASN того POD, с кем выстраиваем соседство, и укажем ipv6-адреса соседей.
+Для начала в настройках процесса BGP каждого BGW-коммутатора создадим peer-group DCI, укажем ASN того POD, с кем выстраиваем соседство, и укажем ipv6-адреса соседей.
 ```
 router bgp 64521
    router-id 10.1.1.4
@@ -368,28 +368,33 @@ router bgp 64521
 
 ### Проверка результатов работы
 
-- Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN:
-
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/VPC_are_pinging_VPC.png)
+- Смотрим установилось ли у нас BGP-EVPN-соседство между BGW-коммутаторами обоих POD. Мы должны увидеть соседей из других автономных систем.
+    - для POD1:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
+    - для POD2:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
+    
+- Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN, но уже в другом POD:
+    - в POD1:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
+    - в POD2:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
 
 Ок! Значит связность есть.
 
-- Далее смотрим установилось ли у нас BGP-EVPN-соседство между Spine- и Leaf-коммутаторами. Об этом нам скажет статус Up в колонке State в строке с указанием  System-id IS-IS-соседа:
-
+- Далее смотрим маршруты на BGW-коммутаторах:
+    - в POD1:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
+    - в POD2:
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
-    
-- Далее смотрим маршруты типа 2 и 3 на Spine-коммутаторах:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spine-route-type2.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spine-route-type3.png)
 
-- Cмотрим маршруты типа 2 и 3 на Leaf-коммутаторах:
+- Cмотрим маршруты на Leaf-коммутаторах:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type2.png)
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type3.png)
 
-- Смотрим удалённые VTEP и типы тоннелей до них:
+- Смотрим VTEP на Leaf-коммутаторах обоих POD:
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-vxlan-vtep.png)
 
@@ -397,14 +402,28 @@ router bgp 64521
 
 ![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-mac-address-table.png)
 
+- Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN, но в другом POD:
+    - хосты в POD1 пингуют хосты в POD2 каждый в своем VLAN:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/VPC1_are_pinging_VPC2.png)
+    - хосты в POD2 пингуют хосты в POD1 каждый в своем VLAN:
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/VPC2_are_pinging_VPC1.png)
+
+Ок! Значит связность есть.
+
 Выводы:
-1. Настроен BGP peering между Leaf и Spine в AF l2vpn evpn.
-2. Связанность между клиентами обеспечена.
+1. В городах А и Б построены два POD, по одному в каждом, по топологии Clos на основе VxLAN EVPN
+2. Обеспечена сетевую связность между POD с использованием технологии Multisite
 
 #### Листинги
 
-[Spine1.cfg](./Spine1.cfg)  
-[Spine2.cfg](./Spine2.cfg)  
-[Leaf1.cfg](./Leaf1.cfg)  
-[Leaf2.cfg](./Leaf2.cfg)  
-[Leaf3.cfg](./Leaf3.cfg)
+[Spine1-1.cfg](./Spine1-1.cfg)  
+[Spine1-2.cfg](./Spine1-2.cfg)  
+[Leaf1-1.cfg](./Leaf1-1.cfg)  
+[BGW1-1.cfg](./BGW1-1.cfg)  
+[BGW1-2.cfg](./BGW1-2.cfg)
+[Spine2-1.cfg](./Spine2-1.cfg)  
+[Spine2-2.cfg](./Spine2-2.cfg)  
+[Leaf2-1.cfg](./Leaf2-1.cfg)  
+[BGW2-1.cfg](./BGW2-1.cfg)  
+[BGW2-2.cfg](./BGW2-2.cfg)
+[ISP-Router.cfg](./ISP-Router.cfg)
