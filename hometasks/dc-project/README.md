@@ -194,10 +194,10 @@ router bgp 64521
       neighbor SITE1-LEAVES activate
    !
    address-family ipv4
-      neighbor SITE1-LEAVES activate
+      no neighbor SITE1-LEAVES activate
    !
    address-family ipv6
-      neighbor SITE1-LEAVES activate
+      no neighbor SITE1-LEAVES activate
 ```
 Незабываем указать, что наши Spine будут являться клиентами и отражать маршруты.
 
@@ -210,8 +210,6 @@ router bgp 64521
    maximum-paths 2 ecmp 2
    neighbor SITE1-SPINES peer group
    neighbor SITE1-SPINES remote-as 64521
-   neighbor SITE1-SPINES update-source Loopback0
-   neighbor SITE1-SPINES send-community extended
    neighbor fd12:dc1:1::1 peer group SITE1-SPINES
    neighbor fd12:dc1:1::2 peer group SITE1-SPINES
    !
@@ -219,13 +217,14 @@ router bgp 64521
       neighbor SITE1-SPINES activate
    !
    address-family ipv4
-      neighbor SITE1-SPINES activate
+      no neighbor SITE1-SPINES activate
    !
    address-family ipv6
-      neighbor SITE1-SPINES activate
+      no neighbor SITE1-SPINES activate
+   !
 ```
 Смотрим что у нас получилось:
-- Spine1:
+- Spine1-1:
 ```
 Spine1-1(config)#show bgp summary
 BGP summary information for VRF default
@@ -236,7 +235,7 @@ fd12:dc1:1::3       64521 Established   L2VPN EVPN              Negotiated      
 fd12:dc1:1::4       64521 Established   L2VPN EVPN              Negotiated              2          2
 fd12:dc1:1::5       64521 Established   L2VPN EVPN              Negotiated              2          2
 ```
-- Leaf1:
+- Leaf1-1, BGW1-1, BGW1-2:
 ```
 BGP summary information for VRF default
 Router identifier 10.1.1.3, local AS number 64521
@@ -245,7 +244,7 @@ Neighbor               AS Session State AFI/SAFI                AFI/SAFI State  
 fd12:dc1:1::1       64521 Established   L2VPN EVPN              Negotiated              4          4
 fd12:dc1:1::2       64521 Established   L2VPN EVPN              Negotiated              4          4
 ```
-Итак, BGP-соседство установлено, переходим к следующему этапу, а именно к построению EVPN.
+Итак, BGP-соседство установлено, Overlay в рамках каждого из POD построен, переходим к следующему этапу, а именно к построению EVPN.
 
 ### 5. Настройка VXLAN
 
@@ -262,9 +261,12 @@ interface Vxlan1
    vxlan vrf VRF2026 vni 1111111
    vxlan learn-restrict any
 ```
-А в настройках процесса BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
+А в настройках процесса BGP указываем, что нужно дистрибьютить:
 ```
 router bgp 64521
+   neighbor SITE1-SPINES update-source Loopback0
+   neighbor SITE1-SPINES send-community extended
+   !
    vlan 10
       rd auto
       route-target both 10:1000010
@@ -275,9 +277,11 @@ router bgp 64521
       route-target both 20:1000020
       redistribute learned
    !
-   address-family evpn
-      neighbor SITE1-SPINES activate
-   !
+   vrf VRF2026
+      rd 64521:3
+      route-target import evpn 1:1111111
+      route-target export evpn 1:1111111
+      redistribute connected
 ```
 #### На BGW-коммутаторах
 Дело будет обстоять несколько иначе. Во-первых VXLAN здесь будет строиться от интерфейса loopback 1, а во-вторых мы зафиксируем MAC‑адрес, который устройство будет использовать как «виртуальный роутер» для VXLAN:
@@ -292,7 +296,7 @@ interface Vxlan1
    vxlan vrf VRF2026 vni 1111111
    vxlan learn-restrict any
 ```
-В настройках процесса BGP указываем, что нужно дистрибьютить и включаем работу EVPN:
+В настройках процесса BGP указываем, что нужно дистрибьютить:
 ```
 router bgp 64521
    vlan 10
@@ -307,100 +311,178 @@ router bgp 64521
       route-target import export evpn domain remote 20:20
       redistribute learned
    !
-   address-family evpn
-      neighbor SITE1-SPINES activate
-```
-#### На Spine-коммутаторах
-Делать ничего не нужно, там достаточно включить EVPN:
-```
-router bgp 64521
- address-family evpn
-    neighbor SITE1-LEAVES activate
+   vrf VFR2026
+      rd 64521:4
+      route-target import evpn 1:1111111
+      route-target export evpn 1:1111111
+      redistribute connected
 ```
 
 ### 5. Настройка DCI между BGW
 
 #### Подготовка роутера ISP
 
-Мы будем использовать статическую маршрутизацию, поэтому на роутере ISP достаточно будет прописать  ipv6-адреса на интерфейсах для стыковки с BGW и прописать маршруты в таблицу маршрутизации:
+Мы будем использовать динамическую маршрутизацию. На роутере ISP настроим соседство со всеми BGW обоих POD. Чтобы маршруты быстро добавлялись в таблицу маршрутизации или удалялись из неё задействуем протокол BFD:
 
 ```
-interface GigabitEthernet0/3
- mtu 9200
+interface GigabitEthernet0/0
+ mtu 9000
  no ip address
  duplex auto
  speed 1000
  media-type rj45
- ipv6 address FD12:DC2:1:201::1/64
+ ipv6 address FD12:DC1:1:201::1/64
  ipv6 enable
-
-ipv6 route FD12:DC1:100::100/128 FD12:DC1:1:201::2
-ipv6 route FD12:DC1:100::100/128 FD12:DC1:1:202::2
-ipv6 route FD12:DC2:100::100/128 FD12:DC2:1:201::2
-ipv6 route FD12:DC2:100::100/128 FD12:DC2:1:202::2
+ bfd interval 1000 min_rx 300 multiplier 3
+ no bfd echo
 ```
-Важный момент: на интерфейсах мы установили MTU 9200, это необходимо, чтобы большие пакеты с VXLAN-инкапсуляцией свободно курсировали между PODами.
+Настраиваем BGP AS64520:
+```
+router bgp 64520
+ bgp router-id 10.0.0.1
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ neighbor BGW peer-group
+ neighbor BGW fall-over bfd
+ neighbor FD12:DC1:1:201::2 remote-as 64521
+ neighbor FD12:DC1:1:201::2 peer-group BGW
+ neighbor FD12:DC1:1:202::2 remote-as 64521
+ neighbor FD12:DC1:1:202::2 peer-group BGW
+ neighbor FD12:DC2:1:201::2 remote-as 64522
+ neighbor FD12:DC2:1:201::2 peer-group BGW
+ neighbor FD12:DC2:1:202::2 remote-as 64522
+ neighbor FD12:DC2:1:202::2 peer-group BGW
+ !
+ address-family ipv6
+  maximum-paths 2
+  neighbor FD12:DC1:1:201::2 activate
+  neighbor FD12:DC1:1:202::2 activate
+  neighbor FD12:DC2:1:201::2 activate
+  neighbor FD12:DC2:1:202::2 activate
+ exit-address-family
+```
+Важный момент: на интерфейсах мы установили MTU 9000, это необходимо, чтобы большие пакеты с VXLAN-инкапсуляцией свободно курсировали между PODами.
 
 #### Построение BGP-соседства между POD
 
-Для начала в настройках процесса BGP каждого BGW-коммутатора создадим peer-group DCI, укажем ASN того POD, с кем выстраиваем соседство, и укажем ipv6-адреса соседей.
+Для начала в настройках процесса BGP каждого BGW-коммутатора создадим новую peer-group DCI, укажем ASN роутера ISP и укажем ipv6-адрес его интерфейса. Также необходимо отключить эту группу в адресных семействах, в которых она не будет функционировать, а именно: evpn и ipv4. Но в адресном семействе ipv6 мы его включаем и указываем, что в ISP-роутеры должны анонсироваться IP-адреса интерфейсов loopback 0 и 1:
 ```
 router bgp 64521
-   router-id 10.1.1.4
-   no bgp default ipv4-unicast
-   distance bgp 20 200 200
-   maximum-paths 2 ecmp 2
    neighbor DCI peer group
-   neighbor DCI remote-as 64522
-   neighbor DCI ebgp-multihop 2
-   neighbor DCI send-community extended
-   neighbor fd12:dc2:1:201::2 peer group DCI
-   neighbor fd12:dc2:1:202::2 peer group DCI
-```
-А теперь включаем эту группу в адресном семействе evpn, указываем то, что это будет удалённый домен и чтобы наш BGW при анонсе маршрутов во внутреннюю сеть указывал себя в качестве next-hop.
-```
+   neighbor DCI remote-as 64520
+   neighbor DCI bfd
+   neighbor fd12:dc1:1:201::1 peer group DCI
+   !
    address-family evpn
+      no neighbor DCI activate
+   !
+   address-family ipv4
+      no neighbor DCI activate
+   !
+   address-family ipv6
       neighbor DCI activate
-      neighbor DCI domain remote
-      neighbor SITE1-SPINES activate
+      network fd12:dc1:1::4/128
+      network fd12:dc1:100::100/128
+```
+То, что мы только, что настроили, есть не что иное, как UNDERLAY в сети DCI.
+
+А теперь переходим к самому интересному: настраиваем Overlay, то есть EVPN, между BGW-коммутаторами обоих POD. Создадим ещё одну новую группу, и в её составе указываем IPv6-адреса интерфейсов loopback 0 BGW-коммутаторов из другого POD. В адресном семействе evpn, указываем то, что это будет удалённый домен и чтобы наш BGW при анонсе маршрутов во внутреннюю сеть указывал себя в качестве next-hop.
+```
+router bgp 64521
+   neighbor SITE2-BGWS peer group
+   neighbor SITE2-BGWS remote-as 64522
+   neighbor SITE2-BGWS update-source Loopback0
+   neighbor SITE2-BGWS ebgp-multihop 10
+   neighbor SITE2-BGWS send-community extended
+   neighbor fd12:dc2:1::3 peer group SITE2-BGWS
+   neighbor fd12:dc2:1::4 peer group SITE2-BGWS
+   !
+   address-family evpn
+      neighbor SITE2-BGWS activate
+      neighbor SITE2-BGWS domain remote
       neighbor default next-hop-self received-evpn-routes route-type ip-prefix inter-domain
+   !
+   address-family ipv4
+      no neighbor SITE2-BGWS activate
+   !
+   address-family ipv6
+      no neighbor SITE2-BGWS activate
 ```
 
 ### Проверка результатов работы
 
 - Смотрим установилось ли у нас BGP-EVPN-соседство между BGW-коммутаторами обоих POD. Мы должны увидеть соседей из других автономных систем.
     - для POD1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
+```
+BGW1-1#show bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.1.4, local AS number 64521
+Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
+----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
+fd12:dc1:1::1           64521 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc1:1::2           64521 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc1:1:201::1       64520 Established   IPv6 Unicast            Negotiated              1          1
+fd12:dc2:1::3           64522 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc2:1::4           64522 Established   L2VPN EVPN              Negotiated              2          2
+
+BGW1-2#show bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.1.5, local AS number 64521
+Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
+----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
+fd12:dc1:1::1           64521 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc1:1::2           64521 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc1:1:202::1       64520 Established   IPv6 Unicast            Negotiated              2          2
+fd12:dc2:1::3           64522 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc2:1::4           64522 Established   L2VPN EVPN              Negotiated              2          2
+```
     - для POD2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
-    
-- Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN, но уже в другом POD:
+```
+BGW2-1#show bgp summary
+BGP summary information for VRF default
+Router identifier 10.2.1.4, local AS number 64522
+Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
+----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
+fd12:dc1:1::4           64521 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc1:1::5           64521 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc2:1::1           64522 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc2:1::2           64522 Established   L2VPN EVPN              Negotiated              6          6
+fd12:dc2:1:201::1       64520 Established   IPv6 Unicast            Negotiated              0          0
+
+BGW2-2#show bgp summary
+Nov 15 23:59:14 BGW2-2 Bgp: %BGP-3-NOTIFICATION: sent to neighbor fd12:dc2:1:202::1 (VRF default AS 64520) 6/10 (Cease/BFD down) 0 bytes
+BGP summary information for VRF default
+Router identifier 10.2.1.3, local AS number 64522
+Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
+----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
+fd12:dc1:1::4           64521 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc1:1::5           64521 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc2:1::1           64522 Active        L2VPN EVPN              Configured              0          0
+fd12:dc2:1::2           64522 Established   L2VPN EVPN              Negotiated              6          6
+fd12:dc2:1:202::1       64520 Active        IPv6 Unicast            Configured              3          3
+
+
+- Далее смотрим маршруты каких типов мы получили по EVPN на BGW-коммутаторах:
     - в POD1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/bgws-show-bgp-evpn.png)
     - в POD2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/bgws-show-bgp-evpn.png)  
 
-Ок! Значит связность есть.
+- Смотрим VTEP на BGW-коммутаторах обоих POD:
 
-- Далее смотрим маршруты на BGW-коммутаторах:
-    - в POD1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/spines-show-bgp-evpn-summary.png)
-    - в POD2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-show-bgp-evpn-summary.png)  
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/bgws-vxlan-vtep.png)
 
+- Cмотрим маршруты каких типов мы получили по EVPN на Leaf-коммутаторах:
 
-- Cмотрим маршруты на Leaf-коммутаторах:
-
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type2.png)
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-route-type3.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/leaves-show-bgp-evpn.png)
 
 - Смотрим VTEP на Leaf-коммутаторах обоих POD:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-vxlan-vtep.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/leaves-vxlan-vtep.png)
 
 - Таблицы MAC-адрессов каждого Leaf:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/leaves-mac-address-table.png)
+![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/leaves-mac-address-table.png)
 
 - Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN, но в другом POD:
     - хосты в POD1 пингуют хосты в POD2 каждый в своем VLAN:
