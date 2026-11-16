@@ -12,9 +12,9 @@
 2. Распределить адресное пространство
 3. Настроить IS-IS в Underlay-сети в каждом POD
 4. Настроить Overlay на основе iBGP в каждом POD
-6. Настроить VXLAN в каждом POD
-5. Настроить DCI между BGW
-6. Проверка результатов работы
+5. Настроить VXLAN в каждом POD
+6. Настроить DCI между BGW
+7. Проверка результатов работы
 
 ### Краткое oписание объекта
 У нас есть 2 POD разнесённые в разные города (город А и город Б). Каждый POD мы будем собирать по топологии Clos.
@@ -26,7 +26,7 @@
 Схема по топологии Clos была собрана в EVE-NG. В качестве основных элементов схемы, Spine-, Leaf-, и BGW-оммутаторов, использовались виртуальные образы Arista vEOS-lab версии 4.29.2F.
 В роли клиентов выступают виртуальные эмуляторы VPC. Именно будут являться источником трафика, именно их MAC-адреса будут транслироваться соседям по фабрике.
 В роли маршрутизатора ISP выступает образ Cisco vIOS версии 15.7(3)M3.
-![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-ht-5/scheme.png)
+![alt-текст](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/scheme.png)
 
 В начале работы на каждом коммутаторе активируем в EOS мультиагентную архитектуру для протоколов маршрутизации. Это необходимо для функционирования EVPN.
 ```
@@ -64,11 +64,11 @@ Spine1-2|fd12:dc1:1::2/128| нет |10.1.1.2|0100.0100.1002|49.0001.0100.0100.10
 Leaf1-1|fd12:dc1:1::3/128| нет |10.1.1.3|0100.0100.1003|49.0001.0100.0100.1003.00
 BGW1-1|fd12:dc1:1::4/128|fd12:dc1:100::100|10.1.1.4|0100.0100.1004|49.0001.0100.0100.1004.00
 BGW1-2|fd12:dc1:1::5/128|fd12:dc1:100::100|10.1.1.5|0100.0100.1005|49.0001.0100.0100.1005.00
-Spine2-1|fd12:dc2:1::1/128| нет |10.2.1.1|0100.0100.1001|49.0002.0100.0100.1001.00
-Spine2-2|fd12:dc2:1::2/128| нет |10.2.1.2|0100.0100.1002|49.0002.0100.0100.1002.00
-Leaf2-1|fd12:dc2:1::5/128| нет |10.2.1.3|0100.0100.1005|49.0002.0100.0100.1005.00
-BGW2-1|fd12:dc2:1::4/128|fd12:dc2:100::100|10.2.1.4|0100.0100.1004|49.0002.0100.0100.1004.00
-BGW2-2|fd12:dc2:1::3/128|fd12:dc2:100::100|10.2.1.5|0100.0100.1003|49.0002.0100.0100.1003.00
+Spine2-1|fd12:dc2:1::1/128| нет |10.2.1.1|0100.0200.1001|49.0002.0100.0200.1001.00
+Spine2-2|fd12:dc2:1::2/128| нет |10.2.1.2|0100.0200.1002|49.0002.0100.0200.1002.00
+Leaf2-1|fd12:dc2:1::5/128| нет |10.2.1.3|0100.0200.1005|49.0002.0100.0200.1005.00
+BGW2-1|fd12:dc2:1::4/128|fd12:dc2:100::100|10.2.1.4|0100.0200.1004|49.0002.0100.0200.1004.00
+BGW2-2|fd12:dc2:1::3/128|fd12:dc2:100::100|10.2.1.5|0100.0200.1003|49.0002.0100.0200.1003.00
 
 где:  
 - loopback 0 4-ый октет - Порядковый номер POD;  
@@ -172,7 +172,7 @@ Spine1-1(config-if-Et1-3)#isis network point-to-point
        ```
 Выполняем аналогичные действия в POD2 согласно разработанному адресному плану. По окончании убеждаемся, что все устройства установили соседство по протоколу isis и обмениваются маршрутами.
 
-### 4. Настройка EBGP (Overlay)
+### 4. Настройка iBGP (Overlay)
 
 Процедуры настройки EBGP на Spine-, Leaf-, BGW-коммутаторах будут отличаться друг от друга.  
 Вначале oпишем процедуру настройки на Spine-коммутаторе:
@@ -249,7 +249,7 @@ fd12:dc1:1::2       64521 Established   L2VPN EVPN              Negotiated      
 ### 5. Настройка VXLAN
 
 #### На Leaf-коммутаторе
-Создаём интерфейсы VXLAN и каждому VLAN сопостовляем его VNI:
+Создаём интерфейсы VXLAN и каждому VLAN сопостaвляем его VNI:
 ```
 Leaf1-1#show running-config interface vxlan1
 interface Vxlan1
@@ -318,7 +318,7 @@ router bgp 64521
       redistribute connected
 ```
 
-### 5. Настройка DCI между BGW
+### 6. Настройка DCI между BGW
 
 #### Подготовка роутера ISP
 
@@ -365,7 +365,7 @@ router bgp 64520
 
 #### Построение BGP-соседства между POD
 
-Для начала в настройках процесса BGP каждого BGW-коммутатора создадим новую peer-group DCI, укажем ASN роутера ISP и укажем ipv6-адрес его интерфейса. Также необходимо отключить эту группу в адресных семействах, в которых она не будет функционировать, а именно: evpn и ipv4. Но в адресном семействе ipv6 мы его включаем и указываем, что в ISP-роутеры должны анонсироваться IP-адреса интерфейсов loopback 0 и 1:
+Для начала в настройках процесса BGP каждого BGW-коммутатора создадим новую peer-group DCI, укажем ASN роутера ISP и укажем ipv6-адрес его интерфейса. Также необходимо отключить эту группу в адресных семействах, в которых она не будет функционировать, а именно: evpn и ipv4. Но в адресном семействе ipv6 мы его включаем и указываем, что в сторону ISP-роутера должны анонсироваться IP-адреса интерфейсов loopback 0 и 1:
 ```
 router bgp 64521
    neighbor DCI peer group
@@ -409,7 +409,7 @@ router bgp 64521
       no neighbor SITE2-BGWS activate
 ```
 
-### Проверка результатов работы
+### 8. Проверка результатов работы
 
 - Смотрим установилось ли у нас BGP-EVPN-соседство между BGW-коммутаторами обоих POD. Мы должны увидеть соседей из других автономных систем.
     - для POD1:
@@ -419,22 +419,22 @@ BGP summary information for VRF default
 Router identifier 10.1.1.4, local AS number 64521
 Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
 ----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
-fd12:dc1:1::1           64521 Established   L2VPN EVPN              Negotiated              2          2
-fd12:dc1:1::2           64521 Established   L2VPN EVPN              Negotiated              0          0
-fd12:dc1:1:201::1       64520 Established   IPv6 Unicast            Negotiated              1          1
-fd12:dc2:1::3           64522 Established   L2VPN EVPN              Negotiated              2          2
-fd12:dc2:1::4           64522 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc1:1::1           64521 Established   L2VPN EVPN              Negotiated             11         11
+fd12:dc1:1::2           64521 Established   L2VPN EVPN              Negotiated             11         11
+fd12:dc1:1:201::1       64520 Established   IPv6 Unicast            Negotiated              3          3
+fd12:dc2:1::3           64522 Established   L2VPN EVPN              Negotiated              5          5
+fd12:dc2:1::4           64522 Established   L2VPN EVPN              Negotiated              5          5
 
 BGW1-2#show bgp summary
 BGP summary information for VRF default
 Router identifier 10.1.1.5, local AS number 64521
 Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
 ----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
-fd12:dc1:1::1           64521 Established   L2VPN EVPN              Negotiated              0          0
-fd12:dc1:1::2           64521 Established   L2VPN EVPN              Negotiated              0          0
-fd12:dc1:1:202::1       64520 Established   IPv6 Unicast            Negotiated              2          2
-fd12:dc2:1::3           64522 Established   L2VPN EVPN              Negotiated              2          2
-fd12:dc2:1::4           64522 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc1:1::1           64521 Established   L2VPN EVPN              Negotiated             11         11
+fd12:dc1:1::2           64521 Established   L2VPN EVPN              Negotiated             11         11
+fd12:dc1:1:202::1       64520 Established   IPv6 Unicast            Negotiated              3          3
+fd12:dc2:1::3           64522 Established   L2VPN EVPN              Negotiated              5          5
+fd12:dc2:1::4           64522 Established   L2VPN EVPN              Negotiated              5          5
 ```
     - для POD2:
 ```
@@ -444,45 +444,611 @@ Router identifier 10.2.1.4, local AS number 64522
 Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
 ----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
 fd12:dc1:1::4           64521 Established   L2VPN EVPN              Negotiated              2          2
-fd12:dc1:1::5           64521 Established   L2VPN EVPN              Negotiated              0          0
-fd12:dc2:1::1           64522 Established   L2VPN EVPN              Negotiated              0          0
-fd12:dc2:1::2           64522 Established   L2VPN EVPN              Negotiated              6          6
-fd12:dc2:1:201::1       64520 Established   IPv6 Unicast            Negotiated              0          0
+fd12:dc1:1::5           64521 Established   L2VPN EVPN              Negotiated              2          2
+fd12:dc2:1::1           64522 Established   L2VPN EVPN              Negotiated              9          9
+fd12:dc2:1::2           64522 Established   L2VPN EVPN              Negotiated              9          9
+fd12:dc2:1:201::1       64520 Established   IPv6 Unicast            Negotiated              3          3
 
 BGW2-2#show bgp summary
-Nov 15 23:59:14 BGW2-2 Bgp: %BGP-3-NOTIFICATION: sent to neighbor fd12:dc2:1:202::1 (VRF default AS 64520) 6/10 (Cease/BFD down) 0 bytes
 BGP summary information for VRF default
 Router identifier 10.2.1.3, local AS number 64522
 Neighbor                   AS Session State AFI/SAFI                AFI/SAFI State   NLRI Rcd   NLRI Acc
 ----------------- ----------- ------------- ----------------------- -------------- ---------- ----------
-fd12:dc1:1::4           64521 Established   L2VPN EVPN              Negotiated              0          0
+fd12:dc1:1::4           64521 Established   L2VPN EVPN              Negotiated              2          2
 fd12:dc1:1::5           64521 Established   L2VPN EVPN              Negotiated              2          2
-fd12:dc2:1::1           64522 Active        L2VPN EVPN              Configured              0          0
-fd12:dc2:1::2           64522 Established   L2VPN EVPN              Negotiated              6          6
-fd12:dc2:1:202::1       64520 Active        IPv6 Unicast            Configured              3          3
-
+fd12:dc2:1::1           64522 Established   L2VPN EVPN              Negotiated              9          9
+fd12:dc2:1::2           64522 Established   L2VPN EVPN              Negotiated              9          9
+fd12:dc2:1:202::1       64520 Established   IPv6 Unicast            Negotiated              3          3
+```
 
 - Далее смотрим маршруты каких типов мы получили по EVPN на BGW-коммутаторах:
     - в POD1:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/bgws-show-bgp-evpn.png)
-    - в POD2:
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/bgws-show-bgp-evpn.png)  
+```
+BGW1-1#show bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.1.1.4, local AS number 64521
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 10.1.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ *  ec    RD: 10.1.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ * >Ec    RD: 10.1.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ *  ec    RD: 10.1.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ * >      RD: 10.1.1.4:20 mac-ip 0050.7966.6808
+                                 -                     -       100     0       64522 i
+          RD: 10.1.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+          RD: 10.1.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.4:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 -                     -       100     0       64522 i
+          RD: 10.1.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+          RD: 10.1.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.4:10 mac-ip 0050.7966.6809
+                                 -                     -       100     0       64522 i
+          RD: 10.1.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+          RD: 10.1.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.4:10 mac-ip 0050.7966.6806 remote
+                                 -                     -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.4:20 mac-ip 0050.7966.6807 remote
+                                 -                     -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6808 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6808 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6808 10.20.1.5 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6808 10.20.1.5 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.3:10 mac-ip 0050.7966.6809 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:10 mac-ip 0050.7966.6809 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >Ec    RD: 10.1.1.3:10 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.3:10 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.3:20 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.3:20 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.4:10 imet fd12:dc1:100::100
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.4:20 imet fd12:dc1:100::100
+                                 -                     -       -       0       i
+          RD: 10.1.1.5:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+          RD: 10.1.1.5:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+          RD: 10.1.1.5:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+          RD: 10.1.1.5:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.4:10 imet fd12:dc1:100::100 remote
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.4:20 imet fd12:dc1:100::100 remote
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.3:10 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.3:20 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:10 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:20 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >Ec    RD: 64521:3 ip-prefix 10.10.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 64521:3 ip-prefix 10.10.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >Ec    RD: 64521:3 ip-prefix 10.20.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 64521:3 ip-prefix 10.20.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+
+BGW1-2#show bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.1.1.5, local AS number 64521
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 10.1.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+          RD: 10.1.1.4:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+          RD: 10.1.1.4:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ * >      RD: 10.1.1.5:20 mac-ip 0050.7966.6808
+                                 -                     -       100     0       64522 i
+          RD: 10.1.1.4:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+          RD: 10.1.1.4:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ * >      RD: 10.1.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 -                     -       100     0       64522 i
+          RD: 10.1.1.4:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+          RD: 10.1.1.4:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ * >      RD: 10.1.1.5:10 mac-ip 0050.7966.6809
+                                 -                     -       100     0       64522 i
+ * >      RD: 10.1.1.5:10 mac-ip 0050.7966.6806 remote
+                                 -                     -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ * >      RD: 10.1.1.5:20 mac-ip 0050.7966.6807 remote
+                                 -                     -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6808 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6808 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6808 10.20.1.5 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6808 10.20.1.5 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.3:10 mac-ip 0050.7966.6809 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:10 mac-ip 0050.7966.6809 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >Ec    RD: 10.1.1.3:10 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.3:10 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.3:20 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.3:20 imet fd12:dc1:1::3
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+          RD: 10.1.1.4:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+          RD: 10.1.1.4:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+          RD: 10.1.1.4:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+          RD: 10.1.1.4:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.5:10 imet fd12:dc1:100::100
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.5:20 imet fd12:dc1:100::100
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.5:10 imet fd12:dc1:100::100 remote
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.5:20 imet fd12:dc1:100::100 remote
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.3:10 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.3:20 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:10 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >      RD: 10.2.1.4:20 imet fd12:dc2:100::100 remote
+                                 fd12:dc2:100::100     -       100     0       64522 i
+ * >Ec    RD: 64521:3 ip-prefix 10.10.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 64521:3 ip-prefix 10.10.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+ * >Ec    RD: 64521:3 ip-prefix 10.20.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.2
+ *  ec    RD: 64521:3 ip-prefix 10.20.1.0/24
+                                 fd12:dc1:1::3         -       100     0       i Or-ID: 10.1.1.3 C-LST: 10.1.1.1
+```
+   - в POD2:
+```
+BGW2-1#show bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.2.1.4, local AS number 64522
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+          RD: 10.2.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+          RD: 10.2.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.4:10 mac-ip 0050.7966.6806
+                                 -                     -       100     0       64521 i
+          RD: 10.2.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+          RD: 10.2.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6807
+                                 -                     -       100     0       64521 i
+ * >Ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >Ec    RD: 10.2.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >      RD: 10.1.1.4:10 mac-ip 0050.7966.6806 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:10 mac-ip 0050.7966.6806 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.4:20 mac-ip 0050.7966.6807 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:20 mac-ip 0050.7966.6807 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6808 remote
+                                 -                     -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >      RD: 10.2.1.4:20 mac-ip 0050.7966.6808 10.20.1.5 remote
+                                 -                     -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.4:10 mac-ip 0050.7966.6809 remote
+                                 -                     -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >Ec    RD: 10.2.1.5:10 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.5:10 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.5:20 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.5:20 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+          RD: 10.2.1.3:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+          RD: 10.2.1.3:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+          RD: 10.2.1.3:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+          RD: 10.2.1.3:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.4:10 imet fd12:dc2:100::100
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.4:20 imet fd12:dc2:100::100
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.4:10 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.4:20 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:10 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:20 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.2.1.4:10 imet fd12:dc2:100::100 remote
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.4:20 imet fd12:dc2:100::100 remote
+                                 -                     -       -       0       i
+ * >Ec    RD: 64522:1 ip-prefix 10.10.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ *  ec    RD: 64522:1 ip-prefix 10.10.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >Ec    RD: 64522:1 ip-prefix 10.20.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ *  ec    RD: 64522:1 ip-prefix 10.20.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+
+BGW2-2#show bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.2.1.3, local AS number 64522
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 10.2.1.3:10 mac-ip 0050.7966.6806
+                                 -                     -       100     0       64521 i
+          RD: 10.2.1.4:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+          RD: 10.2.1.4:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6807
+                                 -                     -       100     0       64521 i
+          RD: 10.2.1.4:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+          RD: 10.2.1.4:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >Ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 10.2.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >Ec    RD: 10.2.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 10.2.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >      RD: 10.1.1.4:10 mac-ip 0050.7966.6806 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:10 mac-ip 0050.7966.6806 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.4:20 mac-ip 0050.7966.6807 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:20 mac-ip 0050.7966.6807 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6808 remote
+                                 -                     -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.3:20 mac-ip 0050.7966.6808 10.20.1.5 remote
+                                 -                     -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.3:10 mac-ip 0050.7966.6809 remote
+                                 -                     -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.5:10 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 10.2.1.5:10 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >Ec    RD: 10.2.1.5:20 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 10.2.1.5:20 imet fd12:dc2:1::5
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >      RD: 10.2.1.3:10 imet fd12:dc2:100::100
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.3:20 imet fd12:dc2:100::100
+                                 -                     -       -       0       i
+          RD: 10.2.1.4:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+          RD: 10.2.1.4:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+          RD: 10.2.1.4:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+          RD: 10.2.1.4:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+ * >      RD: 10.1.1.4:10 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.4:20 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:10 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.1.1.5:20 imet fd12:dc1:100::100 remote
+                                 fd12:dc1:100::100     -       100     0       64521 i
+ * >      RD: 10.2.1.3:10 imet fd12:dc2:100::100 remote
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.3:20 imet fd12:dc2:100::100 remote
+                                 -                     -       -       0       i
+ * >Ec    RD: 64522:1 ip-prefix 10.10.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 64522:1 ip-prefix 10.10.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+ * >Ec    RD: 64522:1 ip-prefix 10.20.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.2
+ *  ec    RD: 64522:1 ip-prefix 10.20.1.0/24
+                                 fd12:dc2:1::5         -       100     0       i Or-ID: 10.2.1.5 C-LST: 10.2.1.1
+```
 
 - Смотрим VTEP на BGW-коммутаторах обоих POD:
+```
+BGW1-1#show vxlan vtep
+Remote VTEPS for Vxlan1:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/bgws-vxlan-vtep.png)
+VTEP                    Tunnel Type(s)
+----------------------- --------------
+fd12:dc1:1::3           flood, unicast
+fd12:dc2:100::100       flood
+
+BGW1-2#show vxlan vtep
+Remote VTEPS for Vxlan1:
+
+VTEP                    Tunnel Type(s)
+----------------------- --------------
+fd12:dc1:1::3           flood, unicast
+fd12:dc2:100::100       flood
+```
+    - POD2:
+```
+BGW2-1#show vxlan vtep
+Remote VTEPS for Vxlan1:
+
+VTEP                    Tunnel Type(s)
+----------------------- --------------
+fd12:dc1:100::100       flood
+fd12:dc2:1::5           flood, unicast
+
+BGW2-2#show vxlan vtep
+Remote VTEPS for Vxlan1:
+
+VTEP                    Tunnel Type(s)
+----------------------- --------------
+fd12:dc1:100::100       flood
+fd12:dc2:1::5           unicast, flood
+```
 
 - Cмотрим маршруты каких типов мы получили по EVPN на Leaf-коммутаторах:
+    - POD1:
+```
+Leaf1-1#show bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.1.1.3, local AS number 64521
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/leaves-show-bgp-evpn.png)
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 10.1.1.3:10 mac-ip 0050.7966.6806
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.3:20 mac-ip 0050.7966.6807
+                                 -                     -       -       0       i
+ * >Ec    RD: 10.1.1.4:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+ *  ec    RD: 10.1.1.4:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ * >Ec    RD: 10.1.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ *  ec    RD: 10.1.1.5:20 mac-ip 0050.7966.6808
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+ * >Ec    RD: 10.1.1.4:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+ *  ec    RD: 10.1.1.4:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ * >Ec    RD: 10.1.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.4:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+ *  ec    RD: 10.1.1.4:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ * >Ec    RD: 10.1.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.5:10 mac-ip 0050.7966.6809
+                                 fd12:dc1:100::100     -       100     0       64522 i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >      RD: 10.1.1.3:10 imet fd12:dc1:1::3
+                                 -                     -       -       0       i
+ * >      RD: 10.1.1.3:20 imet fd12:dc1:1::3
+                                 -                     -       -       0       i
+ * >Ec    RD: 10.1.1.4:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.4:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.4:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.4:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.4 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.5:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.5:10 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >Ec    RD: 10.1.1.5:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.2
+ *  ec    RD: 10.1.1.5:20 imet fd12:dc1:100::100
+                                 fd12:dc1:100::100     -       100     0       i Or-ID: 10.1.1.5 C-LST: 10.1.1.1
+ * >      RD: 64521:3 ip-prefix 10.10.1.0/24
+                                 -                     -       -       0       i
+ * >      RD: 64521:3 ip-prefix 10.20.1.0/24
+                                 -                     -       -       0       i
+```
+    - POD2:
+```
+Leaf2-1#show bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.2.1.5, local AS number 64522
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 10.2.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.3:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.4:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.4:10 mac-ip 0050.7966.6806
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.3:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.4:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.4:20 mac-ip 0050.7966.6807
+                                 fd12:dc2:100::100     -       100     0       64521 i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+ * >      RD: 10.2.1.5:20 mac-ip 0050.7966.6808
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.5:20 mac-ip 0050.7966.6808 10.20.1.5
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.5:10 mac-ip 0050.7966.6809
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.5:10 imet fd12:dc2:1::5
+                                 -                     -       -       0       i
+ * >      RD: 10.2.1.5:20 imet fd12:dc2:1::5
+                                 -                     -       -       0       i
+ * >Ec    RD: 10.2.1.3:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.3:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.3:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.3:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.3 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.4:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.4:10 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+ * >Ec    RD: 10.2.1.4:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.1
+ *  ec    RD: 10.2.1.4:20 imet fd12:dc2:100::100
+                                 fd12:dc2:100::100     -       100     0       i Or-ID: 10.2.1.4 C-LST: 10.2.1.2
+ * >      RD: 64522:1 ip-prefix 10.10.1.0/24
+                                 -                     -       -       0       i
+ * >      RD: 64522:1 ip-prefix 10.20.1.0/24
+                                 -                     -       -       0       i
+```
 
 - Смотрим VTEP на Leaf-коммутаторах обоих POD:
+    - POD1:
+```
+Leaf1-1#show vxlan vtep
+Remote VTEPS for Vxlan1:
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/leaves-vxlan-vtep.png)
+VTEP                    Tunnel Type(s)
+----------------------- --------------
+fd12:dc1:100::100       flood, unicast
+
+Total number of remote VTEPS:  1
+```
+    - POD2:
+```
+Leaf2-1#show vxlan vtep
+Remote VTEPS for Vxlan1:
+
+VTEP                    Tunnel Type(s)
+----------------------- --------------
+fd12:dc2:100::100       unicast, flood
+
+Total number of remote VTEPS:  1
+```
 
 - Таблицы MAC-адрессов каждого Leaf:
+   - POD1:
+```
+Leaf1-1#show mac address-table
+          Mac Address Table
+------------------------------------------------------------------
 
-![alt-text](https://github.com/Gord-Gord/dc-network-design/blob/main/hometasks/dc-project/leaves-mac-address-table.png)
+Vlan    Mac Address       Type        Ports      Moves   Last Move
+----    -----------       ----        -----      -----   ---------
+   1    0000.0000.0001    STATIC      Cpu
+  10    0000.0000.0001    STATIC      Cpu
+  10    0050.7966.6806    DYNAMIC     Et3        1       0:02:21 ago
+  10    0050.7966.6809    DYNAMIC     Vx1        1       0:02:21 ago
+  20    0000.0000.0001    STATIC      Cpu
+  20    0050.7966.6807    DYNAMIC     Et4        1       0:02:21 ago
+  20    0050.7966.6808    DYNAMIC     Vx1        1       0:02:00 ago
+4094    0000.0000.0001    STATIC      Cpu
+Total Mac Addresses for this criterion: 8
+```
+    - POD2:
+```
+Leaf2-1#show mac address-table
+          Mac Address Table
+------------------------------------------------------------------
+
+Vlan    Mac Address       Type        Ports      Moves   Last Move
+----    -----------       ----        -----      -----   ---------
+   1    0000.0000.0001    STATIC      Cpu
+  10    0000.0000.0001    STATIC      Cpu
+  10    0050.7966.6806    DYNAMIC     Vx1        1       0:02:21 ago
+  10    0050.7966.6809    DYNAMIC     Et3        1       0:02:21 ago
+  20    0000.0000.0001    STATIC      Cpu
+  20    0050.7966.6807    DYNAMIC     Vx1        1       0:02:21 ago
+  20    0050.7966.6808    DYNAMIC     Et4        1       0:02:01 ago
+4094    0000.0000.0001    STATIC      Cpu
+Total Mac Addresses for this criterion: 8
+```
 
 - Убедимся, что каждый виртуальный PC видит своего соседа в том же VLAN, но в другом POD:
     - хосты в POD1 пингуют хосты в POD2 каждый в своем VLAN:
@@ -493,8 +1059,10 @@ fd12:dc2:1:202::1       64520 Active        IPv6 Unicast            Configured  
 Ок! Значит связность есть.
 
 Выводы:
-1. В городах А и Б построены два POD, по одному в каждом, по топологии Clos на основе VxLAN EVPN
-2. Обеспечена сетевую связность между POD с использованием технологии Multisite
+1. В городах А и Б построены два POD, по одному в каждом, по топологии Clos на основе VxLAN EVPN.
+2. BGW обоих POD установили между собой BGP-соседство, построен EVPN. BGW анонсируют type-2,3,5 маршруты.
+3. На Leaf-коммутаторы от BGW поступает информация о хостах в другом POD, причем Leaf-коммутаторы одного POD не имеют представления о существовании другого POD.
+2. Обеспечена сетеваю связность между POD с использованием технологии Multisite. Хосты в POD1 обмениваются трафиком с хостами POD2 каждый в своём VLAN и наоборот.
 
 #### Листинги
 
