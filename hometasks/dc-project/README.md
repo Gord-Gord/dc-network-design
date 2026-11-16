@@ -244,7 +244,7 @@ Neighbor               AS Session State AFI/SAFI                AFI/SAFI State  
 fd12:dc1:1::1       64521 Established   L2VPN EVPN              Negotiated              4          4
 fd12:dc1:1::2       64521 Established   L2VPN EVPN              Negotiated              4          4
 ```
-Итак, BGP-соседство установлено, Overlay в рамках каждого из POD построен, переходим к следующему этапу, а именно к построению EVPN.
+Итак, BGP-соседство установлено, Overlay в рамках каждого из POD построен, переходим к следующему этапу, а именно к созданию интерфейса VXLAN.
 
 ### 5. Настройка VXLAN
 
